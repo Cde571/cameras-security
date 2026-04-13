@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import MainLayout from "../../../layouts/MainLayout.astro";
+import EvidenciasUpload from "../../../components/ordenes/EvidenciasUpload";
+
+const { id } = Astro.params;
+---
+
+<MainLayout title={`Evidencias orden ${id}`}>
+  <EvidenciasUpload client:load ordenId={id!} />
+</MainLayout>

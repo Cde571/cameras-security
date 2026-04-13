@@ -1,0 +1,59 @@
+﻿---
+import "../styles/global.css";
+import Sidebar from "../components/navigation/Sidebar";
+import Header from "../components/navigation/Header";
+
+
+import RequireAuth from "../components/auth/RequireAuth";
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Sistema de cotizaciones profesional" } = Astro.props as Props;
+
+// âœ… Ruta actual para active menu
+const currentPath = Astro.url.pathname;
+
+// (Opcional) user info a futuro
+const user = {
+  name: "Admin",
+  email: "admin@empresa.com",
+  initials: "AD",
+  role: "Admin",
+};
+
+// (Opcional) badges a futuro (por ahora estÃ¡ticos)
+const badges = { cotizaciones: 8, ordenes: 3 };
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+
+  <body class="bg-gray-50 text-gray-900">
+    
+    <RequireAuth client:load />
+<div class="flex h-screen overflow-hidden">
+      <aside class="w-64 bg-white border-r border-gray-200">
+        <Sidebar client:load currentPath={currentPath} user={user} badges={badges} />
+      </aside>
+
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="bg-white border-b border-gray-200">
+          <Header client:load />
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6">
+          <slot />
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
+

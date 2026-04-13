@@ -1,0 +1,28 @@
+﻿import React from "react";
+import type { TopItem } from "../../lib/services/reporteLocalService";
+
+function money(n: number) {
+  try { return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }); }
+  catch { return `$ ${Math.round(n)}`; }
+}
+
+export default function TopProductos({ data }: { data: TopItem[] }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h3 className="font-semibold text-gray-900">Top Productos</h3>
+      <p className="text-xs text-gray-500 mt-1">Por total vendido (mock).</p>
+
+      <div className="mt-4 space-y-3">
+        {data.map((p, idx) => (
+          <div key={p.name} className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">{idx + 1}. {p.name}</p>
+              <p className="text-xs text-gray-500">{p.count} ventas</p>
+            </div>
+            <p className="text-sm font-semibold text-gray-900">{money(p.total)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

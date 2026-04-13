@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import MainLayout from "../../layouts/MainLayout.astro";
+import ClienteCard from "../../components/clientes/ClienteCard";
+
+const { id } = Astro.params;
+---
+
+<MainLayout title={`Cliente ${id}`}>
+  <ClienteCard client:load clienteId={id!} />
+</MainLayout>

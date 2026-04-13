@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import MainLayout from "../../layouts/MainLayout.astro";
+import ActaDetail from "../../components/actas/ActaDetail";
+
+const { id } = Astro.params;
+---
+
+<MainLayout title={`Acta ${id}`}>
+  <ActaDetail client:load actaId={id!} />
+</MainLayout>

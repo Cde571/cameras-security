@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import PrintLayout from "../../../layouts/PrintLayout.astro";
+import PDFPreview from "../../../components/cobros/PDFPreview";
+
+const { id } = Astro.params;
+---
+
+<PrintLayout title={`PDF Cobro ${id}`}>
+  <PDFPreview client:load cobroId={id!} />
+</PrintLayout>

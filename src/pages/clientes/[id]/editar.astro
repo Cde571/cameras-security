@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import MainLayout from "../../../layouts/MainLayout.astro";
+import ClienteForm from "../../../components/clientes/ClienteForm";
+
+const { id } = Astro.params;
+---
+
+<MainLayout title={`Editar cliente ${id}`}>
+  <ClienteForm client:load mode="edit" clienteId={id!} />
+</MainLayout>

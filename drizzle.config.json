@@ -1,0 +1,8 @@
+{
+  "schema": "./src/lib/db/schema.ts",
+  "out": "./drizzle",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "url": "postgres://postgres:postgres@localhost:5432/cotizaciones_db"
+  }
+}

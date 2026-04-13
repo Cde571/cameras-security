@@ -1,0 +1,13 @@
+---
+// src/pages/cotizaciones/[id].astro
+export const prerender = false;
+
+import MainLayout from "../../layouts/MainLayout.astro";
+import CotizacionDetail from "../../components/cotizaciones/CotizacionDetail";
+
+const { id } = Astro.params;
+---
+
+<MainLayout title={`Cotización ${id}`}>
+  <CotizacionDetail client:load cotizacionId={id} />
+</MainLayout>
