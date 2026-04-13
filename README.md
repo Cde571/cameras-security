@@ -426,5 +426,3 @@ Autor
 Desarrollado por Cristian Echeverry
 Proyecto: technological-cameras
 
-
-Si quieres, te lo puedo dejar ahora en una **versión más profesional/corporativa** o en una **versión más técnica para GitHub**.
