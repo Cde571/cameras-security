@@ -4,7 +4,6 @@ import Sidebar from "../components/navigation/Sidebar";
 import Header from "../components/navigation/Header";
 import RequireAuth from "../components/auth/RequireAuth";
 import AppSplash from "../components/ui/AppSplash";
-import LegacyDbSync from "../components/system/LegacyDbSync";
 
 interface Props {
   title: string;
@@ -36,7 +35,6 @@ const badges = {
   <body class="bg-gray-50 text-gray-900 antialiased">
     <AppSplash client:load />
     <RequireAuth client:load />
-    <LegacyDbSync client:load />
 
     <div class="flex h-screen overflow-hidden">
       <aside class="w-72 flex-shrink-0 border-r border-gray-200 bg-white">
