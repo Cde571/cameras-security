@@ -22,3 +22,12 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# === Agregado por Fix-TechCameras.ps1 ===
+# Config con credenciales hardcodeadas
+drizzle.config.json
+# Backups manuales
+*.bak*
+# Build output de Vercel
+.vercel
+
