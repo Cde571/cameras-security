@@ -1,3 +1,5 @@
+<img width="1908" height="892" alt="image" src="https://github.com/user-attachments/assets/f45f736d-cab2-4d1a-9381-1c0b83162039" />
+
 # technological-cameras
 
 Sistema de gestión comercial desarrollado con **Astro + React + TypeScript** para administrar **clientes, productos, cotizaciones, órdenes de trabajo, actas, cuentas de cobro, pagos, reportes y configuración**, con soporte para **PDFs profesionales** y una arquitectura preparada para conectarse a **PostgreSQL + Drizzle ORM**.
