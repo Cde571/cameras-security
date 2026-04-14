@@ -1,9 +1,8 @@
-// src/components/dashboard/RecentDocuments.tsx
-import React from "react";
+﻿import React from "react";
 import { FileText, DollarSign, Wrench, Eye } from "lucide-react";
 
 interface Document {
-  id: number;
+  id: string | number;
   type: "cotizacion" | "cobro" | "orden";
   number: string;
   client: string;
@@ -53,6 +52,10 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   aprobada: { label: "Aprobada", color: "bg-green-100 text-green-700" },
   pagada: { label: "Pagada", color: "bg-green-100 text-green-700" },
   vencida: { label: "Vencida", color: "bg-red-100 text-red-700" },
+  borrador: { label: "Borrador", color: "bg-gray-100 text-gray-700" },
+  enviada_cliente: { label: "Enviada", color: "bg-blue-100 text-blue-700" },
+  finalizada: { label: "Finalizada", color: "bg-green-100 text-green-700" },
+  en_revision: { label: "En revisión", color: "bg-purple-100 text-purple-700" },
 };
 
 export default function RecentDocuments({ documents }: RecentDocumentsProps) {
@@ -87,26 +90,26 @@ export default function RecentDocuments({ documents }: RecentDocumentsProps) {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="bg-gray-50 border-b border-gray-200">
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+          <tr className="border-b border-gray-200 bg-gray-50">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
               Tipo
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
               Número
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
               Cliente
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
               Valor
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
               Fecha
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
               Estado
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
               Acciones
             </th>
           </tr>
@@ -117,12 +120,12 @@ export default function RecentDocuments({ documents }: RecentDocumentsProps) {
             <tr>
               <td colSpan={7} className="px-6 py-12 text-center">
                 <div className="flex flex-col items-center justify-center">
-                  <FileText className="w-12 h-12 text-gray-300 mb-3" />
-                  <p className="text-gray-600 font-medium">
+                  <FileText className="mb-3 h-12 w-12 text-gray-300" />
+                  <p className="font-medium text-gray-600">
                     No hay documentos recientes
                   </p>
-                  <p className="text-gray-500 text-sm mt-1">
-                    Crea tu primera cotización para comenzar
+                  <p className="mt-1 text-sm text-gray-500">
+                    Cuando empieces a guardar en PostgreSQL, aparecerán aquí.
                   </p>
                 </div>
               </td>
@@ -132,14 +135,17 @@ export default function RecentDocuments({ documents }: RecentDocumentsProps) {
               const config = typeConfig[doc.type];
               const Icon = config.icon;
               const colors = colorClasses[config.colorKey];
-              const status = statusConfig[doc.status] ?? statusConfig.pendiente;
+              const status = statusConfig[doc.status] ?? {
+                label: doc.status,
+                color: "bg-gray-100 text-gray-700",
+              };
 
               return (
-                <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                <tr key={String(doc.id)} className="transition-colors hover:bg-gray-50">
+                  <td className="whitespace-nowrap px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <div className={`${colors.badgeBg} p-2 rounded-lg`}>
-                        <Icon className={`w-4 h-4 ${colors.iconText}`} />
+                      <div className={`${colors.badgeBg} rounded-lg p-2`}>
+                        <Icon className={`h-4 w-4 ${colors.iconText}`} />
                       </div>
                       <span className="text-sm font-medium text-gray-700">
                         {config.label}
@@ -147,7 +153,7 @@ export default function RecentDocuments({ documents }: RecentDocumentsProps) {
                     </div>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-6 py-4">
                     <span className="text-sm font-semibold text-gray-800">
                       {doc.number}
                     </span>
@@ -157,32 +163,32 @@ export default function RecentDocuments({ documents }: RecentDocumentsProps) {
                     <span className="text-sm text-gray-700">{doc.client}</span>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-6 py-4">
                     <span className="text-sm font-semibold text-gray-800">
                       {formatCurrency(doc.amount)}
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-6 py-4">
                     <span className="text-sm text-gray-600">
                       {formatDate(doc.date)}
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-6 py-4">
                     <span
-                      className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${status.color}`}
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${status.color}`}
                     >
                       {status.label}
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-6 py-4">
                     <a
                       href={getDocumentLink(doc)}
-                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
                     >
-                      <Eye className="w-4 h-4" />
+                      <Eye className="h-4 w-4" />
                       <span>Ver</span>
                     </a>
                   </td>

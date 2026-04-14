@@ -1,8 +1,7 @@
-// src/components/cotizaciones/PDFPreview.tsx
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { Download, RefreshCw, ArrowLeft } from "lucide-react";
 import { getCotizacion, type Cotizacion } from "../../lib/services/cotizacionLocalService";
-import { generateCotizacionPdfBytes } from "../../lib/pdf/cotizacionPDF";
+import { generateCotizacionPdfBytes, type CotizacionPDFInput } from "../../lib/pdf/cotizacionPDF";
 
 export default function PDFPreview({ cotizacionId }: { cotizacionId: string }) {
   const [cot, setCot] = useState<Cotizacion | null>(null);
@@ -18,11 +17,38 @@ export default function PDFPreview({ cotizacionId }: { cotizacionId: string }) {
   const buildPdf = async (c: Cotizacion) => {
     setErr("");
     setLoading(true);
+
     try {
-      const bytes = await generateCotizacionPdfBytes(c);
+      const payload: CotizacionPDFInput = {
+        numero: c.numero,
+        fechaISO: c.fecha,
+        vigenciaDias: c.vigenciaDias,
+        cliente: {
+          nombre: c.cliente?.nombre || "Cliente",
+          documento: c.cliente?.documento,
+          ciudad: c.cliente?.ciudad,
+          telefono: c.cliente?.telefono,
+          email: c.cliente?.email,
+          direccion: c.cliente?.direccion,
+        },
+        asunto: c.asunto,
+        items: (c.items || []).map((it) => ({
+          nombre: it.nombre,
+          kind: it.kind,
+          qty: it.qty,
+          precio: it.precio,
+          ivaPct: it.ivaPct,
+        })),
+        notas: c.notas,
+        condiciones: {
+          validezDias: c.vigenciaDias,
+          adicionales: c.condiciones || "",
+        },
+      };
+
+      const bytes = await generateCotizacionPdfBytes(payload);
       const blob = new Blob([bytes], { type: "application/pdf" });
 
-      // limpiar url previa
       setPdfUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(blob);
@@ -44,7 +70,6 @@ export default function PDFPreview({ cotizacionId }: { cotizacionId: string }) {
 
     if (c) buildPdf(c);
     else setErr("No se encontró la cotización para generar el PDF.");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cotizacionId]);
 
   useEffect(() => {
@@ -63,9 +88,7 @@ export default function PDFPreview({ cotizacionId }: { cotizacionId: string }) {
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Vista previa PDF</h1>
-          <p className="text-sm text-gray-500">
-            Documento profesional listo para enviar/descargar.
-          </p>
+          <p className="text-sm text-gray-500">Documento profesional listo para enviar/descargar.</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -119,8 +142,8 @@ export default function PDFPreview({ cotizacionId }: { cotizacionId: string }) {
           <iframe title="PDF" src={pdfUrl} className="w-full h-[78vh]" />
         </div>
       ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm text-sm text-gray-600">
-          No hay PDF para mostrar.
+        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+          {loading ? "Generando PDF..." : "Aún no hay una vista previa disponible."}
         </div>
       )}
     </div>

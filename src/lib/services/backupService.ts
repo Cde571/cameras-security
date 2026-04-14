@@ -1,8 +1,4 @@
-﻿/**
- * API-first service with LocalService fallback.
- * - Front works now (localStorage)
- * - Later: implement /src/pages/api/... and these services will auto-use DB
- */
+﻿/** API-first service with LocalService fallback. */
 type FetchOpts = RequestInit & { json?: any };
 
 async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
@@ -24,16 +20,13 @@ async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
   if (!res.ok) {
-    const msg = (data && (data.message || data.error)) ? (data.message || data.error) : `HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
   }
 
   return data as T;
 }
 
-function hasWindow() {
-  return typeof window !== "undefined";
-}
+const hasWindow = () => typeof window !== "undefined";
 
 import * as Clientes from "./clienteLocalService";
 import * as Productos from "./productoLocalService";
@@ -51,7 +44,8 @@ export type BackupPayload = {
     cotizaciones: any[];
     ordenes: any[];
     actas: any[];
-    cobrosPagos: any[];
+    cobros: any[];
+    pagos: any[];
     config: any;
   };
 };
@@ -63,17 +57,27 @@ export async function exportBackup(): Promise<BackupPayload> {
   try {
     return await apiFetch<BackupPayload>(API);
   } catch {
-    const exportedAt = new Date().toISOString();
     return {
-      meta: { app: "cotizaciones", version: "v1", exportedAt },
+      meta: {
+        app: "cotizaciones",
+        version: "v1",
+        exportedAt: new Date().toISOString(),
+      },
       data: {
         clientes: Clientes.listClientes(""),
-        productos: Productos.listProductos?.("") ?? [],
+        productos: Productos.listProductos(""),
         cotizaciones: Cotizaciones.listCotizaciones(""),
-        ordenes: Ordenes.listOrdenes?.("") ?? [],
-        actas: Actas.listActas?.("") ?? [],
-        cobrosPagos: (CobrosPagos.listCuentas?.("") ?? []),
-        config: (Config.getConfig?.() ?? null),
+        ordenes: Ordenes.listOrdenes(""),
+        actas: Actas.listActas(""),
+        cobros: CobrosPagos.listCobros(""),
+        pagos: CobrosPagos.listPagos(""),
+        config: {
+          empresa: Config.getEmpresa(),
+          impuestos: Config.listImpuestos(),
+          numeracion: Config.getNumeracion(),
+          usuarios: Config.listUsuarios(),
+          plantillas: Config.listPlantillas(),
+        },
       },
     };
   }
@@ -84,15 +88,13 @@ export async function importBackup(payload: BackupPayload): Promise<{ ok: true }
   try {
     return await apiFetch<{ ok: true }>(API, { method: "POST", json: payload });
   } catch {
-    // Local fallback: write raw keys expected by LocalServices
-    // If your LocalServices use different keys, adjust here.
     localStorage.setItem("coti_clientes_v1", JSON.stringify(payload.data.clientes ?? []));
     localStorage.setItem("coti_productos_v1", JSON.stringify(payload.data.productos ?? []));
     localStorage.setItem("coti_cotizaciones_v1", JSON.stringify(payload.data.cotizaciones ?? []));
     localStorage.setItem("coti_ordenes_v1", JSON.stringify(payload.data.ordenes ?? []));
     localStorage.setItem("coti_actas_v1", JSON.stringify(payload.data.actas ?? []));
-    localStorage.setItem("coti_cobros_pagos_v1", JSON.stringify(payload.data.cobrosPagos ?? []));
-    if (payload.data.config !== undefined) localStorage.setItem("coti_config_v1", JSON.stringify(payload.data.config));
+    localStorage.setItem("coti_cobros_v1", JSON.stringify(payload.data.cobros ?? []));
+    localStorage.setItem("coti_pagos_v1", JSON.stringify(payload.data.pagos ?? []));
     return { ok: true };
   }
 }

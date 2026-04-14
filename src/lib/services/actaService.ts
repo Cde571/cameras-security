@@ -1,8 +1,4 @@
-﻿/**
- * API-first service with LocalService fallback.
- * - Front works now (localStorage)
- * - Later: implement /src/pages/api/... and these services will auto-use DB
- */
+﻿/** API-first service with LocalService fallback. */
 type FetchOpts = RequestInit & { json?: any };
 
 async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
@@ -24,53 +20,55 @@ async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
   if (!res.ok) {
-    const msg = (data && (data.message || data.error)) ? (data.message || data.error) : `HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
   }
 
   return data as T;
 }
 
-function hasWindow() {
-  return typeof window !== "undefined";
-}
+const hasWindow = () => typeof window !== "undefined";
 
 import * as Local from "./actaLocalService";
-export type { Acta } from "./actaLocalService";
+export type Acta = Local.ActaEntrega;
+export type ActaEntrega = Local.ActaEntrega;
 
 const API = "/api/actas";
 
 export async function listActas(search = "") {
-  if (!hasWindow()) return [] as Local.Acta[];
+  if (!hasWindow()) return [] as Local.ActaEntrega[];
   try {
-    return await apiFetch<Local.Acta[]>(${API}?q=);
+    const q = search ? `?q=${encodeURIComponent(search)}` : "";
+    return await apiFetch<Local.ActaEntrega[]>(`${API}${q}`);
   } catch {
     return Local.listActas(search);
   }
 }
 
 export async function getActa(id: string) {
-  if (!hasWindow()) return null as Local.Acta | null;
+  if (!hasWindow()) return null as Local.ActaEntrega | null;
   try {
-    return await apiFetch<Local.Acta>(${API}/);
+    return await apiFetch<Local.ActaEntrega>(`${API}/${encodeURIComponent(id)}`);
   } catch {
     return Local.getActa(id);
   }
 }
 
-export async function createActa(data: Omit<Local.Acta, "id" | "createdAt" | "updatedAt">) {
+export async function createActa(data: Omit<Local.ActaEntrega, "id" | "numero" | "createdAt" | "updatedAt">) {
   if (!hasWindow()) throw new Error("createActa solo en browser");
   try {
-    return await apiFetch<Local.Acta>(API, { method: "POST", json: data });
+    return await apiFetch<Local.ActaEntrega>(API, { method: "POST", json: data });
   } catch {
     return Local.createActa(data as any);
   }
 }
 
-export async function updateActa(id: string, patch: Partial<Local.Acta>) {
+export async function updateActa(id: string, patch: Partial<Local.ActaEntrega>) {
   if (!hasWindow()) throw new Error("updateActa solo en browser");
   try {
-    return await apiFetch<Local.Acta>(${API}/, { method: "PATCH", json: patch });
+    return await apiFetch<Local.ActaEntrega>(`${API}/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      json: patch,
+    });
   } catch {
     return Local.updateActa(id, patch as any);
   }
@@ -79,7 +77,7 @@ export async function updateActa(id: string, patch: Partial<Local.Acta>) {
 export async function deleteActa(id: string) {
   if (!hasWindow()) throw new Error("deleteActa solo en browser");
   try {
-    await apiFetch(${API}/, { method: "DELETE" });
+    await apiFetch(`${API}/${encodeURIComponent(id)}`, { method: "DELETE" });
   } catch {
     Local.deleteActa(id);
   }

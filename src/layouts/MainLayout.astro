@@ -2,29 +2,26 @@
 import "../styles/global.css";
 import Sidebar from "../components/navigation/Sidebar";
 import Header from "../components/navigation/Header";
-
-
 import RequireAuth from "../components/auth/RequireAuth";
+import AppSplash from "../components/ui/AppSplash";
+import LegacyDbSync from "../components/system/LegacyDbSync";
+
 interface Props {
   title: string;
   description?: string;
 }
 
-const { title, description = "Sistema de cotizaciones profesional" } = Astro.props as Props;
+const {
+  title,
+  description = "Sistema de cotizaciones profesional",
+} = Astro.props as Props;
 
-// âœ… Ruta actual para active menu
 const currentPath = Astro.url.pathname;
 
-// (Opcional) user info a futuro
-const user = {
-  name: "Admin",
-  email: "admin@empresa.com",
-  initials: "AD",
-  role: "Admin",
+const badges = {
+  cotizaciones: 8,
+  ordenes: 3,
 };
-
-// (Opcional) badges a futuro (por ahora estÃ¡ticos)
-const badges = { cotizaciones: 8, ordenes: 3 };
 ---
 
 <!doctype html>
@@ -36,16 +33,18 @@ const badges = { cotizaciones: 8, ordenes: 3 };
     <title>{title}</title>
   </head>
 
-  <body class="bg-gray-50 text-gray-900">
-    
+  <body class="bg-gray-50 text-gray-900 antialiased">
+    <AppSplash client:load />
     <RequireAuth client:load />
-<div class="flex h-screen overflow-hidden">
-      <aside class="w-64 bg-white border-r border-gray-200">
-        <Sidebar client:load currentPath={currentPath} user={user} badges={badges} />
+    <LegacyDbSync client:load />
+
+    <div class="flex h-screen overflow-hidden">
+      <aside class="w-72 flex-shrink-0 border-r border-gray-200 bg-white">
+        <Sidebar client:load currentPath={currentPath} badges={badges} />
       </aside>
 
-      <div class="flex-1 flex flex-col min-w-0">
-        <header class="bg-white border-b border-gray-200">
+      <div class="flex min-w-0 flex-1 flex-col">
+        <header class="border-b border-gray-200 bg-white">
           <Header client:load />
         </header>
 
@@ -56,4 +55,3 @@ const badges = { cotizaciones: 8, ordenes: 3 };
     </div>
   </body>
 </html>
-

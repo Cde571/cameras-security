@@ -1,8 +1,16 @@
-﻿export type User = {
+﻿import {
+  getUsuarioByEmail,
+  listUsuarios,
+  setUsuarioUltimoAcceso,
+  type Usuario,
+  type UsuarioRol,
+} from "./configLocalService";
+
+export type User = {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "user";
+  role: UsuarioRol;
 };
 
 export type Session = {
@@ -12,34 +20,27 @@ export type Session = {
 };
 
 const SESSION_KEY = "coti_session_v1";
-const USERS_KEY = "coti_users_v1";
-
-type LocalUser = User & { password: string };
+const SPLASH_FLAG_KEY = "coti_show_login_splash";
 
 function safeParse<T>(value: string | null, fallback: T): T {
-  try { return value ? (JSON.parse(value) as T) : fallback; } catch { return fallback; }
+  try {
+    return value ? (JSON.parse(value) as T) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function uid() {
-  return (globalThis.crypto?.randomUUID?.() ?? `u_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+  return globalThis.crypto?.randomUUID?.() ?? `tok_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-function seedUsersIfEmpty() {
-  if (typeof window === "undefined") return;
-  const list = safeParse<LocalUser[]>(localStorage.getItem(USERS_KEY), []);
-  if (list.length > 0) return;
-
-  const seed: LocalUser[] = [
-    {
-      id: uid(),
-      name: "Admin",
-      email: "admin@empresa.com",
-      role: "admin",
-      password: "admin123",
-    },
-  ];
-
-  localStorage.setItem(USERS_KEY, JSON.stringify(seed));
+function mapUsuarioToUser(u: Usuario): User {
+  return {
+    id: u.id,
+    name: u.nombre,
+    email: u.email,
+    role: u.rol,
+  };
 }
 
 export function getSession(): Session | null {
@@ -47,8 +48,12 @@ export function getSession(): Session | null {
   return safeParse<Session | null>(localStorage.getItem(SESSION_KEY), null);
 }
 
+export function getCurrentUser(): User | null {
+  return getSession()?.user ?? null;
+}
+
 export function isAuthenticated(): boolean {
-  return !!getSession();
+  return !!getSession()?.user?.id;
 }
 
 export function logout() {
@@ -56,26 +61,44 @@ export function logout() {
   localStorage.removeItem(SESSION_KEY);
 }
 
+export function listAuthUsers() {
+  return listUsuarios();
+}
+
 export function login(email: string, password: string): Session {
   if (typeof window === "undefined") throw new Error("login debe ejecutarse en el browser");
-  seedUsersIfEmpty();
 
   const e = (email || "").trim().toLowerCase();
   const p = (password || "").trim();
 
-  const users = safeParse<LocalUser[]>(localStorage.getItem(USERS_KEY), []);
-  const found = users.find(u => u.email.toLowerCase() === e);
+  if (!e || !p) {
+    throw new Error("Ingresa email y contraseña");
+  }
 
+  const found = getUsuarioByEmail(e);
   if (!found || found.password !== p) {
     throw new Error("Credenciales inválidas");
   }
 
+  if (!found.activo) {
+    throw new Error("Este usuario está inactivo");
+  }
+
   const session: Session = {
-    token: `tok_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-    user: { id: found.id, name: found.name, email: found.email, role: found.role },
+    token: uid(),
+    user: mapUsuarioToUser(found),
     createdAt: new Date().toISOString(),
   };
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  sessionStorage.setItem(SPLASH_FLAG_KEY, "1");
+  setUsuarioUltimoAcceso(found.id, session.createdAt);
+
   return session;
+}
+
+export function hasRole(roles: UsuarioRol[]) {
+  const current = getCurrentUser();
+  if (!current) return false;
+  return roles.includes(current.role);
 }

@@ -1,102 +1,79 @@
-﻿// src/lib/services/cobroService.ts
-
-/**
- * API-first service with LocalService fallback.
- * - Front works now (localStorage)
- * - Later: implement /src/pages/api/... and these services will auto-use DB
- */
-
+﻿/** API-first service with LocalService fallback. */
 import * as Local from "./cobroPagoLocalService";
-export type { CuentaCobro, Pago } from "./cobroPagoLocalService";
+export type CuentaCobro = Local.CuentaCobro;
+export type Pago = Local.Pago;
 
 type FetchOpts = RequestInit & { json?: any };
 
 const API = "/api/cobros";
-
-function hasWindow() {
-  return typeof window !== "undefined";
-}
+const hasWindow = () => typeof window !== "undefined";
 
 async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   const headers: Record<string, string> = {
     ...(opts.headers as any),
   };
 
-  // solo setear Content-Type cuando enviamos JSON
-  const isSendingJson = opts.json !== undefined;
-  if (isSendingJson && !headers["Content-Type"]) {
+  if (opts.json !== undefined && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
 
   const init: RequestInit = {
     ...opts,
     headers,
-    body: isSendingJson ? JSON.stringify(opts.json) : opts.body,
+    body: opts.json !== undefined ? JSON.stringify(opts.json) : opts.body,
   };
 
   const res = await fetch(url, init);
-
-  // si es 204, no hay body
   if (res.status === 204) return undefined as unknown as T;
 
   const text = await res.text();
   let data: any = null;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
   if (!res.ok) {
-    const msg =
-      data && (data.message || data.error)
-        ? data.message || data.error
-        : `HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
   }
 
   return data as T;
 }
 
 export async function listCuentas(search = "") {
-  if (!hasWindow()) return [] as any[];
+  if (!hasWindow()) return [] as Local.CuentaCobro[];
   try {
-    return await apiFetch<any[]>(
-      `${API}?q=${encodeURIComponent(search)}`
-    );
+    const q = search ? `?q=${encodeURIComponent(search)}` : "";
+    return await apiFetch<Local.CuentaCobro[]>(`${API}${q}`);
   } catch {
-    return Local.listCuentas(search);
+    return Local.listCobros(search);
   }
 }
 
 export async function getCuenta(id: string) {
-  if (!hasWindow()) return null as any;
+  if (!hasWindow()) return null as Local.CuentaCobro | null;
   try {
-    return await apiFetch<any>(`${API}/${encodeURIComponent(id)}`);
+    return await apiFetch<Local.CuentaCobro>(`${API}/${encodeURIComponent(id)}`);
   } catch {
-    return Local.getCuenta(id);
+    return Local.getCobro(id);
   }
 }
 
-export async function createCuenta(data: any) {
+export async function createCuenta(data: Omit<Local.CuentaCobro, "id" | "numero" | "createdAt" | "updatedAt" | "subtotal" | "iva" | "total">) {
   if (!hasWindow()) throw new Error("createCuenta solo en browser");
   try {
-    return await apiFetch<any>(API, { method: "POST", json: data });
+    return await apiFetch<Local.CuentaCobro>(API, { method: "POST", json: data });
   } catch {
-    return Local.createCuenta(data);
+    return Local.createCobro(data as any);
   }
 }
 
-export async function updateCuenta(id: string, patch: any) {
+export async function updateCuenta(id: string, patch: Partial<Local.CuentaCobro>) {
   if (!hasWindow()) throw new Error("updateCuenta solo en browser");
   try {
-    return await apiFetch<any>(`${API}/${encodeURIComponent(id)}`, {
+    return await apiFetch<Local.CuentaCobro>(`${API}/${encodeURIComponent(id)}`, {
       method: "PATCH",
       json: patch,
     });
   } catch {
-    return Local.updateCuenta(id, patch);
+    return Local.updateCobro(id, patch as any);
   }
 }
 
@@ -105,6 +82,6 @@ export async function deleteCuenta(id: string) {
   try {
     await apiFetch(`${API}/${encodeURIComponent(id)}`, { method: "DELETE" });
   } catch {
-    Local.deleteCuenta(id);
+    Local.deleteCobro(id);
   }
 }

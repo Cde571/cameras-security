@@ -1,9 +1,11 @@
-﻿/**
- * API-first service with LocalService fallback.
- * - Front works now (localStorage)
- * - Later: implement /src/pages/api/... and these services will auto-use DB
- */
+﻿/** API-first service with LocalService fallback. */
+import * as Local from "./cobroPagoLocalService";
+export type Pago = Local.Pago;
+
 type FetchOpts = RequestInit & { json?: any };
+
+const API = "/api/pagos";
+const hasWindow = () => typeof window !== "undefined";
 
 async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   const headers: Record<string, string> = {
@@ -19,50 +21,41 @@ async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
 
   const res = await fetch(url, init);
   const text = await res.text();
-
   let data: any = null;
+
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
   if (!res.ok) {
-    const msg = (data && (data.message || data.error)) ? (data.message || data.error) : `HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
   }
 
   return data as T;
 }
 
-function hasWindow() {
-  return typeof window !== "undefined";
-}
-
-import * as Local from "./cobroPagoLocalService";
-export type { Pago } from "./cobroPagoLocalService";
-
-const API = "/api/pagos";
-
 export async function listPagos(search = "") {
-  if (!hasWindow()) return [] as any[];
+  if (!hasWindow()) return [] as Local.Pago[];
   try {
-    return await apiFetch<any[]>(${API}?q=);
+    const q = search ? `?q=${encodeURIComponent(search)}` : "";
+    return await apiFetch<Local.Pago[]>(`${API}${q}`);
   } catch {
-    return Local.listPagos?.(search) ?? [];
+    return Local.listPagos(search);
   }
 }
 
-export async function createPago(data: any) {
+export async function createPago(data: Omit<Local.Pago, "id" | "createdAt" | "updatedAt">) {
   if (!hasWindow()) throw new Error("createPago solo en browser");
   try {
-    return await apiFetch<any>(API, { method: "POST", json: data });
+    return await apiFetch<Local.Pago>(API, { method: "POST", json: data });
   } catch {
-    return Local.createPago?.(data) ?? data;
+    return Local.createPago(data as any);
   }
 }
 
 export async function deletePago(id: string) {
   if (!hasWindow()) throw new Error("deletePago solo en browser");
   try {
-    await apiFetch(${API}/, { method: "DELETE" });
+    await apiFetch(`${API}/${encodeURIComponent(id)}`, { method: "DELETE" });
   } catch {
-    Local.deletePago?.(id);
+    # Fallback local no implementa deletePago todavía
   }
 }

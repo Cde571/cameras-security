@@ -1,168 +1,151 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import { Download, RefreshCcw } from "lucide-react";
-import * as cotSvc from "../../lib/services/cotizacionLocalService";
+import { Download, RefreshCw, ArrowLeft } from "lucide-react";
+import { getCotizacion, type Cotizacion } from "../../lib/services/cotizacionLocalService";
+import { generateCotizacionPdfBytes, type CotizacionPDFInput } from "../../lib/pdf/cotizacionPDF";
 
-type Props = { cotizacionId: string };
-
-function toISODate(v: any) {
-  if (!v) return new Date().toISOString().slice(0, 10);
-  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
-  const d = new Date(v);
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  return new Date().toISOString().slice(0, 10);
-}
-
-function normalizeCotizacion(raw: any, id: string) {
-  const items = (raw?.items ?? raw?.detalle ?? raw?.productos ?? []).map((it: any) => ({
-    codigo: it.codigo ?? it.sku ?? it.ref ?? "",
-    descripcion: it.descripcion ?? it.nombre ?? "Ítem",
-    cantidad: Number(it.cantidad ?? it.qty ?? 1),
-    unidad: it.unidad ?? "",
-    precioUnitario: Number(it.precioUnitario ?? it.unitPrice ?? it.precio ?? 0),
-    ivaPct: Number(it.ivaPct ?? it.iva ?? 19),
-    descuentoPct: Number(it.descuentoPct ?? it.descuento ?? 0),
-  }));
-
-  return {
-    numero: raw?.numero ?? raw?.number ?? `COT-${id}`,
-    fechaISO: toISODate(raw?.fecha ?? raw?.date),
-    validezDias: Number(raw?.validezDias ?? 15),
-    vendedor: raw?.vendedor ?? raw?.asesor ?? "—",
-    cliente: {
-      nombre: raw?.cliente?.nombre ?? raw?.client?.nombre ?? raw?.clienteNombre ?? "Cliente",
-      documento: raw?.cliente?.documento ?? raw?.clienteDocumento ?? "",
-      telefono: raw?.cliente?.telefono ?? raw?.clienteTelefono ?? "",
-      email: raw?.cliente?.email ?? raw?.clienteEmail ?? "",
-      direccion: raw?.cliente?.direccion ?? raw?.clienteDireccion ?? "",
-      ciudad: raw?.cliente?.ciudad ?? raw?.clienteCiudad ?? "",
-    },
-    items,
-    condiciones: raw?.condiciones ?? undefined,
-    notas: raw?.notas ?? "",
-    moneda: "COP",
-  };
-}
-
-export default function PDFPreview({ cotizacionId }: Props) {
-  const [url, setUrl] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+export default function PDFPreview({ cotizacionId }: { cotizacionId: string }) {
+  const [cot, setCot] = useState<Cotizacion | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string>("");
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string>("");
 
-  const getCotizacion =
-    (cotSvc as any).getCotizacion ??
-    (cotSvc as any).getCotizacionById ??
-    (cotSvc as any).getCotizacionLocal;
+  const filename = useMemo(() => {
+    const base = cot?.numero ? `${cot.numero}` : `cotizacion-${cotizacionId}`;
+    return `${base}.pdf`;
+  }, [cot?.numero, cotizacionId]);
 
-  const empresa = useMemo(
-    () => ({
-      nombre: "Tecnological Cameras",
-      nit: "NIT: 000.000.000-0",
-      telefono: "Tel: +57 300 000 0000",
-      email: "ventas@empresa.com",
-      direccion: "Medellín, Colombia",
-      logoPath: "public/brand/logo.png",
-    }),
-    []
-  );
-
-  const generate = async () => {
-    setLoading(true);
+  const buildPdf = async (c: Cotizacion) => {
     setErr("");
+    setLoading(true);
 
     try {
-      const raw = getCotizacion ? getCotizacion(cotizacionId) : null;
-      if (!raw) throw new Error("No se encontró la cotización para generar el PDF.");
+      const payload: CotizacionPDFInput = {
+        numero: c.numero,
+        fechaISO: c.fecha,
+        vigenciaDias: c.vigenciaDias,
+        cliente: {
+          nombre: c.cliente?.nombre || "Cliente",
+          documento: c.cliente?.documento,
+          ciudad: c.cliente?.ciudad,
+          telefono: c.cliente?.telefono,
+          email: c.cliente?.email,
+          direccion: c.cliente?.direccion,
+        },
+        asunto: c.asunto,
+        items: (c.items || []).map((it) => ({
+          nombre: it.nombre,
+          kind: it.kind,
+          qty: it.qty,
+          precio: it.precio,
+          ivaPct: it.ivaPct,
+        })),
+        notas: c.notas,
+        condiciones: {
+          validezDias: c.vigenciaDias,
+          adicionales: c.condiciones || "",
+        },
+      };
 
-      const payload = { empresa, cotizacion: normalizeCotizacion(raw, cotizacionId) };
+      const bytes = await generateCotizacionPdfBytes(payload);
+      const blob = new Blob([bytes], { type: "application/pdf" });
 
-      const res = await fetch("/api/pdf/cotizacion", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.message ?? "No fue posible generar el PDF.");
-      }
-
-      const blob = await res.blob();
-      const nextUrl = URL.createObjectURL(blob);
-
-      setUrl((prev) => {
+      setPdfUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
-        return nextUrl;
+        return URL.createObjectURL(blob);
       });
     } catch (e: any) {
-      setErr(e?.message ?? "Error generando PDF");
+      setErr(e?.message ?? "No fue posible generar el PDF");
+      setPdfUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return "";
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    generate();
-    return () => {
-      setUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return "";
-      });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const c = getCotizacion(cotizacionId);
+    setCot(c);
+
+    if (c) buildPdf(c);
+    else setErr("No se encontró la cotización para generar el PDF.");
   }, [cotizacionId]);
 
-  const download = async () => {
-    if (!url) return;
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cotizacion-${cotizacionId}.pdf`;
-    a.click();
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    };
+  }, [pdfUrl]);
+
+  const onRegenerar = async () => {
+    if (!cot) return;
+    await buildPdf(cot);
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="space-y-4">
+      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Vista previa PDF</h2>
+          <h1 className="text-xl font-bold text-gray-900">Vista previa PDF</h1>
           <p className="text-sm text-gray-500">Documento profesional listo para enviar/descargar.</p>
         </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={generate}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50"
-            disabled={loading}
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`/cotizaciones/${cotizacionId}`}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50"
           >
-            <RefreshCcw className="h-4 w-4" />
-            Regenerar
-          </button>
+            <ArrowLeft className="h-4 w-4" />
+            Volver
+          </a>
 
           <button
-            onClick={download}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:bg-blue-300"
-            disabled={!url || loading}
+            onClick={onRegenerar}
+            disabled={!cot || loading}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 ${
+              loading || !cot
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-white border border-gray-300 hover:bg-gray-50 text-gray-800"
+            }`}
+          >
+            <RefreshCw className="h-4 w-4" />
+            {loading ? "Generando..." : "Regenerar"}
+          </button>
+
+          <a
+            href={pdfUrl || "#"}
+            download={filename}
+            onClick={(e) => {
+              if (!pdfUrl) e.preventDefault();
+            }}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 ${
+              pdfUrl
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-blue-300 text-white cursor-not-allowed"
+            }`}
           >
             <Download className="h-4 w-4" />
             Descargar
-          </button>
+          </a>
         </div>
-      </div>
+      </header>
 
       {err ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {err}
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-6 text-sm text-gray-600">Generando PDF...</div>
-        ) : url ? (
-          <iframe title="pdf" src={url} className="w-full" style={{ height: "75vh" }} />
-        ) : (
-          <div className="p-6 text-sm text-gray-600">No hay PDF para mostrar.</div>
-        )}
-      </div>
+      {pdfUrl ? (
+        <div className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+          <iframe title="PDF" src={pdfUrl} className="w-full h-[78vh]" />
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+          {loading ? "Generando PDF..." : "Aún no hay una vista previa disponible."}
+        </div>
+      )}
     </div>
   );
 }

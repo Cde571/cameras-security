@@ -1,259 +1,465 @@
-// src/lib/pdf/cotizacionPDF.ts
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { calcTotales, type Cotizacion } from "../services/cotizacionLocalService";
-import { A4, isoToDate, moneyCOP, wrapText } from "./templates";
+﻿import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import type { CuentaCobro } from "../services/cobroPagoLocalService";
+import type { EmpresaConfig } from "../services/configLocalService";
 
-export async function generateCotizacionPdfBytes(c: Cotizacion): Promise<Uint8Array> {
+function moneyCOP(n: number) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(n || 0);
+}
+
+function formatDateES(value?: string) {
+  if (!value) return "-";
+  try {
+    return new Intl.DateTimeFormat("es-CO", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function wrapText(text: string, maxChars: number): string[] {
+  const words = (text || "").split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length <= maxChars) current = next;
+    else {
+      if (current) lines.push(current);
+      current = word;
+    }
+  }
+
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+}
+
+export type CuentaCobroPDFOptions = {
+  empresa?: Partial<EmpresaConfig>;
+  plantillaTexto?: string;
+  firmaEmisor?: string;
+  firmaCliente?: string;
+};
+
+export async function generateCuentaCobroPdfBytes(
+  cobro: CuentaCobro,
+  options: CuentaCobroPDFOptions = {}
+): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([A4.w, A4.h]);
+  const page = pdfDoc.addPage([595.28, 841.89]);
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   const { width, height } = page.getSize();
-  const margin = 42;
+  const margin = 40;
 
-  // Colors
-  const gray = rgb(0.25, 0.25, 0.27);
-  const lightGray = rgb(0.92, 0.93, 0.95);
-  const blue = rgb(0.12, 0.33, 0.75);
+  const colors = {
+    dark: rgb(0.12, 0.12, 0.16),
+    gray: rgb(0.42, 0.42, 0.48),
+    light: rgb(0.92, 0.94, 0.97),
+    blue: rgb(0.12, 0.33, 0.75),
+    softBlue: rgb(0.97, 0.98, 1),
+    border: rgb(0.85, 0.87, 0.90),
+  };
 
-  // Header band
+  const empresa = {
+    nombre: options.empresa?.nombre || "Technological Cameras",
+    nit: options.empresa?.nit || "",
+    telefono: options.empresa?.telefono || "",
+    email: options.empresa?.email || "",
+    direccion: options.empresa?.direccion || "",
+    ciudad: options.empresa?.ciudad || "",
+    website: options.empresa?.website || "",
+  };
+
   page.drawRectangle({
     x: 0,
     y: height - 110,
     width,
     height: 110,
-    color: rgb(0.97, 0.98, 1),
+    color: colors.softBlue,
   });
+
   page.drawLine({
     start: { x: 0, y: height - 110 },
     end: { x: width, y: height - 110 },
     thickness: 1,
-    color: lightGray,
+    color: colors.border,
   });
 
-  // Company (placeholder)
-  page.drawText("TECHNOLOGICAL CAMERAS", {
+  page.drawText(empresa.nombre, {
     x: margin,
-    y: height - 55,
-    size: 16,
+    y: height - 50,
+    size: 17,
     font: fontBold,
-    color: gray,
-  });
-  page.drawText("Sistemas de seguridad y videovigilancia", {
-    x: margin,
-    y: height - 74,
-    size: 10,
-    font,
-    color: rgb(0.35, 0.35, 0.38),
+    color: colors.dark,
   });
 
-  // Doc meta (right)
-  const rightX = width - margin - 230;
-  page.drawText("COTIZACIÓN", {
+  const empresaLine1 = [empresa.nit ? `NIT: ${empresa.nit}` : "", empresa.telefono ? `Tel: ${empresa.telefono}` : ""]
+    .filter(Boolean)
+    .join("  •  ");
+
+  const empresaLine2 = [empresa.email, empresa.direccion, empresa.ciudad, empresa.website]
+    .filter(Boolean)
+    .join("  •  ");
+
+  if (empresaLine1) {
+    page.drawText(empresaLine1, {
+      x: margin,
+      y: height - 67,
+      size: 9,
+      font,
+      color: colors.gray,
+    });
+  }
+
+  if (empresaLine2) {
+    page.drawText(empresaLine2, {
+      x: margin,
+      y: height - 81,
+      size: 9,
+      font,
+      color: colors.gray,
+    });
+  }
+
+  const rightX = width - margin - 190;
+
+  page.drawText("CUENTA DE COBRO", {
     x: rightX,
     y: height - 50,
-    size: 12,
+    size: 13,
     font: fontBold,
-    color: blue,
+    color: colors.blue,
   });
-  page.drawText(`No: ${c.numero}`, {
+
+  page.drawText(`No: ${cobro.numero}`, {
     x: rightX,
     y: height - 68,
     size: 10,
     font: fontBold,
-    color: gray,
+    color: colors.dark,
   });
-  page.drawText(`Fecha: ${isoToDate(c.fecha)}`, {
+
+  page.drawText(`Emisión: ${formatDateES(cobro.fechaEmision)}`, {
     x: rightX,
     y: height - 84,
-    size: 10,
+    size: 9,
     font,
-    color: gray,
+    color: colors.gray,
   });
-  page.drawText(`Vigencia: ${c.vigenciaDias} días`, {
+
+  page.drawText(`Vencimiento: ${formatDateES(cobro.fechaVencimiento)}`, {
     x: rightX,
-    y: height - 100,
-    size: 10,
+    y: height - 98,
+    size: 9,
     font,
-    color: gray,
+    color: colors.gray,
   });
 
-  // Cliente block
-  let y = height - 140;
-  page.drawText("Cliente", { x: margin, y, size: 11, font: fontBold, color: gray });
-  y -= 14;
-  page.drawText(`${c.cliente?.nombre ?? ""}`, { x: margin, y, size: 10, font: fontBold, color: gray });
-  y -= 13;
+  let y = height - 145;
 
-  const cliLine = [
-    c.cliente?.documento ? `Doc: ${c.cliente.documento}` : "",
-    c.cliente?.ciudad ? `Ciudad: ${c.cliente.ciudad}` : "",
-    c.cliente?.telefono ? `Tel: ${c.cliente.telefono}` : "",
-    c.cliente?.email ? `Email: ${c.cliente.email}` : "",
+  page.drawText("Cliente", {
+    x: margin,
+    y,
+    size: 11,
+    font: fontBold,
+    color: colors.dark,
+  });
+
+  y -= 16;
+
+  page.drawText(cobro.cliente?.nombre || "-", {
+    x: margin,
+    y,
+    size: 10,
+    font: fontBold,
+    color: colors.dark,
+  });
+
+  y -= 14;
+
+  const clienteLine = [
+    cobro.cliente?.documento ? `Doc/NIT: ${cobro.cliente.documento}` : "",
+    cobro.cliente?.telefono ? `Tel: ${cobro.cliente.telefono}` : "",
+    cobro.cliente?.email ? `Email: ${cobro.cliente.email}` : "",
+    cobro.cliente?.ciudad ? `Ciudad: ${cobro.cliente.ciudad}` : "",
   ].filter(Boolean).join("  •  ");
 
-  page.drawText(cliLine || "—", { x: margin, y, size: 9, font, color: rgb(0.35, 0.35, 0.38) });
-
-  // Asunto
-  y -= 22;
-  if (c.asunto) {
-    page.drawText("Asunto:", { x: margin, y, size: 9, font: fontBold, color: gray });
-    page.drawText(c.asunto, { x: margin + 52, y, size: 9, font, color: gray });
-  }
-
-  // Table
-  y -= 26;
-  const tableTop = y;
-  const col = {
-    idx: margin,
-    desc: margin + 28,
-    qty: width - margin - 170,
-    unit: width - margin - 120,
-    iva: width - margin - 70,
-    total: width - margin - 10,
-  };
-
-  // Header row bg
-  page.drawRectangle({
+  page.drawText(clienteLine || "-", {
     x: margin,
-    y: tableTop,
-    width: width - margin * 2,
-    height: 22,
-    color: lightGray,
+    y,
+    size: 9,
+    font,
+    color: colors.gray,
   });
 
-  page.drawText("#", { x: col.idx, y: tableTop + 7, size: 9, font: fontBold, color: gray });
-  page.drawText("Descripción", { x: col.desc, y: tableTop + 7, size: 9, font: fontBold, color: gray });
-  page.drawText("Cant", { x: col.qty, y: tableTop + 7, size: 9, font: fontBold, color: gray });
-  page.drawText("Unit", { x: col.unit, y: tableTop + 7, size: 9, font: fontBold, color: gray });
-  page.drawText("IVA", { x: col.iva, y: tableTop + 7, size: 9, font: fontBold, color: gray });
-  page.drawText("Total", { x: col.total - 36, y: tableTop + 7, size: 9, font: fontBold, color: gray });
+  y -= 28;
 
-  let rowY = tableTop - 14;
-  const rowHBase = 18;
+  const tableX = margin;
+  const tableW = width - margin * 2;
+  const colDesc = tableX + 10;
+  const colCant = tableX + tableW - 210;
+  const colUnit = tableX + tableW - 150;
+  const colIva = tableX + tableW - 90;
+  const colTotal = tableX + tableW - 15;
 
-  const items = c.items || [];
-  items.forEach((it, i) => {
-    const base = (it.precio || 0) * (it.qty || 0);
-    const iva = base * ((it.ivaPct || 0) / 100);
+  page.drawRectangle({
+    x: tableX,
+    y,
+    width: tableW,
+    height: 22,
+    color: colors.light,
+  });
+
+  page.drawText("Descripción", { x: colDesc, y: y + 7, size: 9, font: fontBold, color: colors.dark });
+  page.drawText("Cant", { x: colCant, y: y + 7, size: 9, font: fontBold, color: colors.dark });
+  page.drawText("Unit", { x: colUnit, y: y + 7, size: 9, font: fontBold, color: colors.dark });
+  page.drawText("IVA", { x: colIva, y: y + 7, size: 9, font: fontBold, color: colors.dark });
+  page.drawText("Total", { x: colTotal - 34, y: y + 7, size: 9, font: fontBold, color: colors.dark });
+
+  let rowY = y - 16;
+
+  for (const item of cobro.servicios || []) {
+    const base = (item.cantidad || 0) * (item.unitario || 0);
+    const iva = base * ((item.ivaPct || 0) / 100);
     const total = base + iva;
+    const descLines = wrapText(item.descripcion || "", 48);
+    const rowH = Math.max(18, descLines.length * 11 + 4);
 
-    const descLines = wrapText(`${it.nombre}${it.kind ? ` (${it.kind})` : ""}`, 48);
-    const rowH = Math.max(rowHBase, descLines.length * 11);
-
-    // row separator
     page.drawLine({
-      start: { x: margin, y: rowY - 6 },
-      end: { x: width - margin, y: rowY - 6 },
+      start: { x: tableX, y: rowY - 5 },
+      end: { x: tableX + tableW, y: rowY - 5 },
       thickness: 0.6,
-      color: lightGray,
+      color: colors.border,
     });
 
-    page.drawText(String(i + 1), { x: col.idx, y: rowY, size: 9, font, color: gray });
-
-    // description multi-line
-    descLines.forEach((ln, k) => {
-      page.drawText(ln, { x: col.desc, y: rowY - k * 11, size: 9, font, color: gray });
+    descLines.forEach((line, idx) => {
+      page.drawText(line, {
+        x: colDesc,
+        y: rowY - idx * 11,
+        size: 9,
+        font,
+        color: colors.dark,
+      });
     });
 
-    page.drawText(String(it.qty || 0), { x: col.qty + 10, y: rowY, size: 9, font, color: gray });
-    page.drawText(moneyCOP(it.precio || 0), { x: col.unit - 10, y: rowY, size: 9, font, color: gray });
-    page.drawText(`${it.ivaPct || 0}%`, { x: col.iva + 6, y: rowY, size: 9, font, color: gray });
-    page.drawText(moneyCOP(total), { x: col.total - 100, y: rowY, size: 9, font: fontBold, color: gray });
+    page.drawText(String(item.cantidad || 0), {
+      x: colCant + 6,
+      y: rowY,
+      size: 9,
+      font,
+      color: colors.dark,
+    });
+
+    page.drawText(moneyCOP(item.unitario || 0), {
+      x: colUnit - 8,
+      y: rowY,
+      size: 9,
+      font,
+      color: colors.dark,
+    });
+
+    page.drawText(`${item.ivaPct || 0}%`, {
+      x: colIva + 6,
+      y: rowY,
+      size: 9,
+      font,
+      color: colors.dark,
+    });
+
+    page.drawText(moneyCOP(total), {
+      x: colTotal - 96,
+      y: rowY,
+      size: 9,
+      font: fontBold,
+      color: colors.dark,
+    });
 
     rowY -= rowH;
-  });
+  }
 
-  // Totals box
-  const totals = calcTotales(items);
-  const boxW = 260;
-  const boxH = 68;
-  const boxX = width - margin - boxW;
-  const boxY = Math.max(120, rowY - 16);
+  const totalsBoxW = 220;
+  const totalsBoxH = 72;
+  const totalsBoxX = width - margin - totalsBoxW;
+  const totalsBoxY = Math.max(120, rowY - 12);
 
   page.drawRectangle({
-    x: boxX,
-    y: boxY,
-    width: boxW,
-    height: boxH,
+    x: totalsBoxX,
+    y: totalsBoxY,
+    width: totalsBoxW,
+    height: totalsBoxH,
     color: rgb(0.99, 0.99, 1),
-    borderColor: lightGray,
+    borderColor: colors.border,
     borderWidth: 1,
   });
 
-  const lineY1 = boxY + boxH - 20;
-  page.drawText("Subtotal", { x: boxX + 12, y: lineY1, size: 9, font, color: gray });
-  page.drawText(moneyCOP(totals.subtotal), { x: boxX + 130, y: lineY1, size: 9, font: fontBold, color: gray });
-
-  const lineY2 = lineY1 - 16;
-  page.drawText("IVA", { x: boxX + 12, y: lineY2, size: 9, font, color: gray });
-  page.drawText(moneyCOP(totals.iva), { x: boxX + 130, y: lineY2, size: 9, font: fontBold, color: gray });
-
-  page.drawLine({
-    start: { x: boxX + 12, y: lineY2 - 8 },
-    end: { x: boxX + boxW - 12, y: lineY2 - 8 },
-    thickness: 0.8,
-    color: lightGray,
+  page.drawText("Subtotal", {
+    x: totalsBoxX + 12,
+    y: totalsBoxY + 49,
+    size: 9,
+    font,
+    color: colors.dark,
   });
 
-  const lineY3 = lineY2 - 20;
-  page.drawText("TOTAL", { x: boxX + 12, y: lineY3, size: 10, font: fontBold, color: blue });
-  page.drawText(moneyCOP(totals.total), { x: boxX + 130, y: lineY3, size: 10, font: fontBold, color: blue });
+  page.drawText(moneyCOP(cobro.subtotal || 0), {
+    x: totalsBoxX + 110,
+    y: totalsBoxY + 49,
+    size: 9,
+    font: fontBold,
+    color: colors.dark,
+  });
 
-  // Condiciones / notas
-  let textY = boxY - 24;
-  const bottomLimit = 75;
+  page.drawText("IVA", {
+    x: totalsBoxX + 12,
+    y: totalsBoxY + 32,
+    size: 9,
+    font,
+    color: colors.dark,
+  });
 
-  const addBlock = (title: string, body: string) => {
-    if (!body) return;
-    if (textY < bottomLimit) return;
+  page.drawText(moneyCOP(cobro.iva || 0), {
+    x: totalsBoxX + 110,
+    y: totalsBoxY + 32,
+    size: 9,
+    font: fontBold,
+    color: colors.dark,
+  });
 
-    page.drawText(title, { x: margin, y: textY, size: 10, font: fontBold, color: gray });
-    textY -= 14;
+  page.drawLine({
+    start: { x: totalsBoxX + 12, y: totalsBoxY + 23 },
+    end: { x: totalsBoxX + totalsBoxW - 12, y: totalsBoxY + 23 },
+    thickness: 0.8,
+    color: colors.border,
+  });
 
-    const lines = wrapText(body, 95);
-    lines.forEach((ln) => {
-      if (textY < bottomLimit) return;
-      page.drawText(ln, { x: margin, y: textY, size: 9, font, color: rgb(0.35, 0.35, 0.38) });
-      textY -= 12;
+  page.drawText("TOTAL", {
+    x: totalsBoxX + 12,
+    y: totalsBoxY + 8,
+    size: 10,
+    font: fontBold,
+    color: colors.blue,
+  });
+
+  page.drawText(moneyCOP(cobro.total || 0), {
+    x: totalsBoxX + 110,
+    y: totalsBoxY + 8,
+    size: 10,
+    font: fontBold,
+    color: colors.blue,
+  });
+
+  let textY = totalsBoxY - 24;
+
+  if (cobro.observaciones) {
+    page.drawText("Observaciones", {
+      x: margin,
+      y: textY,
+      size: 10,
+      font: fontBold,
+      color: colors.dark,
     });
 
-    textY -= 6;
-  };
+    textY -= 14;
 
-  addBlock("Condiciones", c.condiciones || "");
-  addBlock("Notas", c.notas || "");
+    for (const line of wrapText(cobro.observaciones, 95)) {
+      page.drawText(line, {
+        x: margin,
+        y: textY,
+        size: 9,
+        font,
+        color: colors.gray,
+      });
+      textY -= 12;
+    }
 
-  // Footer
+    textY -= 8;
+  }
+
+  if (options.plantillaTexto) {
+    page.drawText("Condiciones / Forma de pago", {
+      x: margin,
+      y: textY,
+      size: 10,
+      font: fontBold,
+      color: colors.dark,
+    });
+
+    textY -= 14;
+
+    for (const line of wrapText(options.plantillaTexto, 95)) {
+      page.drawText(line, {
+        x: margin,
+        y: textY,
+        size: 9,
+        font,
+        color: colors.gray,
+      });
+      textY -= 12;
+    }
+  }
+
+  const signY = 85;
+
   page.drawLine({
-    start: { x: margin, y: 55 },
-    end: { x: width - margin, y: 55 },
+    start: { x: margin + 10, y: signY },
+    end: { x: margin + 200, y: signY },
     thickness: 1,
-    color: lightGray,
+    color: colors.border,
   });
 
-  page.drawText("Este documento es una cotización. Precios en COP. No incluye trabajos no especificados.", {
-    x: margin,
-    y: 38,
-    size: 8,
-    font,
-    color: rgb(0.45, 0.45, 0.48),
+  page.drawLine({
+    start: { x: width - margin - 200, y: signY },
+    end: { x: width - margin - 10, y: signY },
+    thickness: 1,
+    color: colors.border,
   });
 
-  page.drawText("TechCameras • Medellín, Colombia", {
+  page.drawText(options.firmaEmisor || empresa.nombre || "Emisor", {
+    x: margin + 20,
+    y: signY - 16,
+    size: 9,
+    font,
+    color: colors.gray,
+  });
+
+  page.drawText(options.firmaCliente || cobro.cliente?.nombre || "Cliente", {
+    x: width - margin - 155,
+    y: signY - 16,
+    size: 9,
+    font,
+    color: colors.gray,
+  });
+
+  page.drawLine({
+    start: { x: margin, y: 48 },
+    end: { x: width - margin, y: 48 },
+    thickness: 1,
+    color: colors.border,
+  });
+
+  page.drawText("Documento generado automáticamente desde el módulo de cuentas de cobro.", {
     x: margin,
-    y: 24,
+    y: 32,
     size: 8,
     font,
-    color: rgb(0.45, 0.45, 0.48),
+    color: colors.gray,
   });
 
   return await pdfDoc.save();
 }
 
-// Alias para compatibilidad
-export async function buildCotizacionPDF(c: Cotizacion): Promise<Uint8Array> {
-  return generateCotizacionPdfBytes(c);
+export async function buildCuentaCobroPDF(
+  cobro: CuentaCobro,
+  options: CuentaCobroPDFOptions = {}
+): Promise<Uint8Array> {
+  return generateCuentaCobroPdfBytes(cobro, options);
 }

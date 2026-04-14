@@ -1,121 +1,68 @@
----
-// src/pages/index.astro
-// Dashboard principal del sistema de cotizaciones
-
+﻿---
 import MainLayout from "../layouts/MainLayout.astro";
-
-// Importar componentes React SIN extensión (.tsx)
 import KPICard from "../components/dashboard/KPICard";
 import QuickActions from "../components/dashboard/QuickActions";
 import RecentDocuments from "../components/dashboard/RecentDocuments";
 import AlertsList from "../components/dashboard/AlertsList";
+import { getDashboardData } from "../lib/server/dashboard";
 
-// TODO: Reemplazar con datos reales de la base de datos
-const dashboardData = {
-  kpis: {
-    totalCotizadoMes: 45_680_000,
-    cotizacionesPendientes: 8,
-    ordenesEnCurso: 3,
-    carteraVencida: 2_340_000,
-  },
-  recentDocs: [
-    {
-      id: 1,
-      type: "cotizacion",
-      number: "COT-2026-045",
-      client: "Hotel Plaza Real",
-      amount: 3_594_300,
-      date: "2026-01-18",
-      status: "enviada",
-    },
-    {
-      id: 2,
-      type: "cobro",
-      number: "CC-2026-089",
-      client: "Supermercado El Ahorro",
-      amount: 2_150_000,
-      date: "2026-01-17",
-      status: "pendiente",
-    },
-    {
-      id: 3,
-      type: "orden",
-      number: "OT-2026-123",
-      client: "Clínica San Rafael",
-      amount: 8_900_000,
-      date: "2026-01-16",
-      status: "en_progreso",
-    },
-  ],
-  alerts: [
-    {
-      id: 1,
-      type: "warning",
-      message: "Cotización COT-2026-032 vence mañana",
-      action: "/cotizaciones/32",
-    },
-    {
-      id: 2,
-      type: "danger",
-      message: "2 cuentas de cobro vencidas",
-      action: "/pagos/cartera",
-    },
-    {
-      id: 3,
-      type: "info",
-      message: "Orden OT-2026-118 lista para acta de entrega",
-      action: "/ordenes/118",
-    },
-  ],
-};
-
-// Metadata de la página
 const pageTitle = "Dashboard - Sistema de Cotizaciones";
 const pageDescription =
   "Panel principal del sistema de gestión de cotizaciones y ventas";
 
-const todayLong = new Date().toLocaleDateString("es-CO", {
+const dashboardData = await getDashboardData();
+
+const now = new Date();
+
+const todayLong = new Intl.DateTimeFormat("es-CO", {
   weekday: "long",
   year: "numeric",
   month: "long",
   day: "numeric",
-});
+}).format(now);
 
-const currentMonth = new Date().toLocaleDateString("es-CO", { month: "long" });
+const currentMonth = new Intl.DateTimeFormat("es-CO", {
+  month: "long",
+}).format(now);
+
+const hasCriticalAlerts = dashboardData.alerts.some((a) => a.type === "danger");
 ---
 
 <MainLayout title={pageTitle} description={pageDescription}>
-  <!-- Hero / Welcome Section -->
-  <section class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-8 mb-8">
+  <section class="mb-8 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 p-8 shadow-lg">
     <div class="flex items-center justify-between gap-6">
       <div class="text-white">
-        <h1 class="text-3xl font-bold mb-2">Bienvenido de nuevo</h1>
-        <p class="text-blue-100 text-lg">Hoy es {todayLong}</p>
+        <h1 class="mb-2 text-3xl font-bold">Bienvenido de nuevo</h1>
+        <p class="text-lg text-blue-100">Hoy es {todayLong}</p>
       </div>
 
       <div class="hidden md:block">
-        <div class="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-white text-center">
-          <p class="text-sm text-blue-100 mb-1">Mes actual</p>
+        <div class="rounded-lg bg-white/20 p-4 text-center text-white backdrop-blur-sm">
+          <p class="mb-1 text-sm text-blue-100">Mes actual</p>
           <p class="text-3xl font-bold">{currentMonth}</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- KPIs Grid -->
-  <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+  {!dashboardData.dbConnected && (
+    <section class="mb-6 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+      No se pudo conectar el dashboard a PostgreSQL: {dashboardData.error}
+    </section>
+  )}
+
+  <section class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
     <KPICard
-      client:load
       title="Cotizado este mes"
       value={dashboardData.kpis.totalCotizadoMes}
       type="currency"
       icon="dollar-sign"
-      trend={{ value: 13, direction: "up" }}
+      trend={dashboardData.kpis.trendTotalCotizadoMes}
       color="blue"
+      link="/cotizaciones"
     />
 
     <KPICard
-      client:load
       title="Cotizaciones pendientes"
       value={dashboardData.kpis.cotizacionesPendientes}
       type="number"
@@ -125,7 +72,6 @@ const currentMonth = new Date().toLocaleDateString("es-CO", { month: "long" });
     />
 
     <KPICard
-      client:load
       title="Órdenes en curso"
       value={dashboardData.kpis.ordenesEnCurso}
       type="number"
@@ -135,40 +81,51 @@ const currentMonth = new Date().toLocaleDateString("es-CO", { month: "long" });
     />
 
     <KPICard
-      client:load
-      title="Cartera vencida"
+      title="Cartera pendiente"
       value={dashboardData.kpis.carteraVencida}
       type="currency"
       icon="alert-circle"
-      trend={{ value: 5, direction: "down" }}
       color="red"
-      link="/pagos/cartera?filter=vencida"
+      link="/pagos/cartera"
     />
   </section>
 
-  <!-- Acciones rápidas y Alertas -->
-  <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+  <section class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
     <div class="lg:col-span-2">
-      <QuickActions client:load />
+      <QuickActions />
     </div>
 
-    <div>
-      <AlertsList client:load alerts={dashboardData.alerts} />
+    <div class="space-y-4">
+      {hasCriticalAlerts ? (
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Hay alertas críticas que requieren revisión inmediata.
+        </div>
+      ) : (
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          No hay alertas críticas registradas en este momento.
+        </div>
+      )}
+
+      <AlertsList alerts={dashboardData.alerts} />
     </div>
   </section>
 
-  <!-- Documentos Recientes -->
-  <section class="bg-white rounded-xl shadow-md border border-gray-200">
+  <section class="rounded-xl border border-gray-200 bg-white shadow-md">
     <div class="border-b border-gray-200 px-6 py-4">
       <div class="flex items-center justify-between gap-4">
-        <h2 class="text-xl font-bold text-gray-800">Documentos recientes</h2>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800">Documentos recientes</h2>
+          <p class="mt-1 text-sm text-gray-500">
+            Últimos movimientos leídos desde PostgreSQL.
+          </p>
+        </div>
 
         <a
           href="/cotizaciones"
-          class="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 transition-colors"
+          class="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
         >
           Ver todos
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -180,43 +137,6 @@ const currentMonth = new Date().toLocaleDateString("es-CO", { month: "long" });
       </div>
     </div>
 
-    <RecentDocuments client:load documents={dashboardData.recentDocs} />
+    <RecentDocuments documents={dashboardData.recentDocs} />
   </section>
-
-  <!-- Footer Info -->
-  <footer class="mt-8 text-center text-sm text-gray-500">
-    <p>
-      Sistema de Cotizaciones v1.0
-      <span class="mx-2">•</span>
-      Última actualización: {new Date().toLocaleTimeString("es-CO")}
-    </p>
-  </footer>
 </MainLayout>
-
-<style>
-  /* Animación de entrada suave (opcional) */
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .animate-fadeIn {
-    animation: fadeInUp 0.5s ease-out;
-  }
-</style>
-
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const alertas = document.querySelectorAll('[data-alert-type="danger"]');
-    if (alertas.length > 0) {
-      console.log(`Tienes ${alertas.length} alertas importantes`);
-    }
-  });
-</script>
-

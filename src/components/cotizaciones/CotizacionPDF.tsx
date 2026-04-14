@@ -19,7 +19,7 @@ export default function CotizacionPDF({ cotizacionId }: { cotizacionId: string }
 
   return (
     <div className="print:p-0">
-      <PDFPreview cotizacion={c} />
+      <PDFPreview cotizacionId={c.id} />
     </div>
   );
 }

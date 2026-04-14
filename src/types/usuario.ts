@@ -1,9 +1,11 @@
-﻿import type { AuditFields, ID } from "./common";
+﻿export type UsuarioRol = "admin" | "tecnico" | "ventas";
 
-export type Usuario = AuditFields & {
-  id: ID;
-  name: string;
+export type Usuario = {
+  id: string;
+  nombre: string;
   email: string;
-  role: "admin" | "user";
-  active?: boolean;
+  rol: UsuarioRol;
+  activo: boolean;
+  password: string;
+  ultimoAcceso?: string;
 };

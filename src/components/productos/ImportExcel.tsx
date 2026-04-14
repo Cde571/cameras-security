@@ -13,7 +13,7 @@ function normalizeKey(k: string) {
   return String(k || "").trim().toLowerCase();
 }
 
-function pick(row: Row, keys: string[], fallback = "") {
+function pick(row: Row, keys: string[], fallback: any = "") {
   for (const k of keys) {
     const v = row[k];
     if (v !== undefined && v !== null && String(v).trim() !== "") return v;
@@ -159,3 +159,4 @@ export default function ImportExcel() {
     </div>
   );
 }
+

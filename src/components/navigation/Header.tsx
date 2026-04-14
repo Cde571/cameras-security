@@ -1,89 +1,95 @@
-// src/components/navigation/Header.tsx
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Bell, 
-  Settings, 
+﻿import React, { useEffect, useMemo, useState } from "react";
+import {
+  Search,
+  Bell,
+  Settings,
   LogOut,
   Menu,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
+import { getCurrentUser, logout } from "../../lib/services/authLocalService";
+
+function roleLabel(role?: string) {
+  if (role === "admin") return "Administrador";
+  if (role === "tecnico") return "Técnico";
+  if (role === "ventas") return "Ventas";
+  return "Usuario";
+}
+
+function initialsFromName(name?: string) {
+  const base = (name || "Usuario").trim();
+  const parts = base.split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() || "").join("") || "US";
+}
 
 export default function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
 
-  const notifications = [
-    {
-      id: 1,
-      type: 'warning',
-      message: 'Cotización COT-2024-032 vence mañana',
-      time: 'Hace 5 min'
-    },
-    {
-      id: 2,
-      type: 'success',
-      message: 'Pago recibido de Hotel Plaza Real',
-      time: 'Hace 1 hora'
-    },
-    {
-      id: 3,
-      type: 'info',
-      message: 'Nueva orden OT-2024-124 creada',
-      time: 'Hace 2 horas'
-    }
-  ];
+  useEffect(() => {
+    setCurrentUser(getCurrentUser());
+  }, []);
+
+  const notifications = useMemo(() => [
+    { id: 1, type: "warning", message: "Cotización COT-2024-032 vence mañana", time: "Hace 5 min" },
+    { id: 2, type: "success", message: "Pago recibido de Hotel Plaza Real", time: "Hace 1 hora" },
+    { id: 3, type: "info", message: "Nueva orden OT-2024-124 creada", time: "Hace 2 horas" },
+  ], []);
+
+  const userName = currentUser?.name || "Usuario";
+  const userRole = roleLabel(currentUser?.role);
+  const userInitials = initialsFromName(userName);
+
+  const doLogout = () => {
+    logout();
+    window.location.href = "/auth/login";
+  };
 
   return (
-    <div className="h-16 px-6 flex items-center justify-between">
-      {/* Left side - Mobile menu + Search */}
-      <div className="flex items-center gap-4 flex-1">
-        {/* Mobile menu button */}
+    <div className="flex h-16 items-center justify-between px-6">
+      <div className="flex flex-1 items-center gap-4">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          className="rounded-lg p-2 transition-colors hover:bg-gray-100 lg:hidden"
         >
           {mobileMenuOpen ? (
-            <X className="w-5 h-5 text-gray-600" />
+            <X className="h-5 w-5 text-gray-600" />
           ) : (
-            <Menu className="w-5 h-5 text-gray-600" />
+            <Menu className="h-5 w-5 text-gray-600" />
           )}
         </button>
 
-        {/* Search bar */}
-        <div className="hidden md:flex items-center flex-1 max-w-md">
+        <div className="hidden max-w-md flex-1 items-center md:flex">
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Buscar clientes, cotizaciones..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
       </div>
 
-      {/* Right side - Actions */}
       <div className="flex items-center gap-3">
-        {/* Notifications */}
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative"
+            className="relative rounded-lg p-2 transition-colors hover:bg-gray-100"
           >
-            <Bell className="w-5 h-5 text-gray-600" />
+            <Bell className="h-5 w-5 text-gray-600" />
             {notifications.length > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500"></span>
             )}
           </button>
 
-          {/* Notifications dropdown */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-              <div className="p-4 border-b border-gray-200">
+            <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-lg">
+              <div className="border-b border-gray-200 p-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-gray-800">Notificaciones</h3>
-                  <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                  <span className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-600">
                     {notifications.length}
                   </span>
                 </div>
@@ -92,25 +98,27 @@ export default function Header() {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+                    className="cursor-pointer border-b border-gray-100 p-4 last:border-0 hover:bg-gray-50"
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`
-                        w-2 h-2 rounded-full mt-2 flex-shrink-0
-                        ${notification.type === 'warning' ? 'bg-yellow-500' : ''}
-                        ${notification.type === 'success' ? 'bg-green-500' : ''}
-                        ${notification.type === 'info' ? 'bg-blue-500' : ''}
-                      `}></div>
-                      <div className="flex-1 min-w-0">
+                      <div
+                        className={[
+                          "mt-2 h-2 w-2 flex-shrink-0 rounded-full",
+                          notification.type === "warning" ? "bg-yellow-500" : "",
+                          notification.type === "success" ? "bg-green-500" : "",
+                          notification.type === "info" ? "bg-blue-500" : "",
+                        ].join(" ")}
+                      />
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm text-gray-800">{notification.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                        <p className="mt-1 text-xs text-gray-500">{notification.time}</p>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="p-3 border-t border-gray-200">
-                <button className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium">
+              <div className="border-t border-gray-200 p-3">
+                <button className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700">
                   Ver todas las notificaciones
                 </button>
               </div>
@@ -118,44 +126,37 @@ export default function Header() {
           )}
         </div>
 
-        {/* Settings */}
         <a
           href="/config"
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          className="rounded-lg p-2 transition-colors hover:bg-gray-100"
+          title="Configuración"
         >
-          <Settings className="w-5 h-5 text-gray-600" />
+          <Settings className="h-5 w-5 text-gray-600" />
         </a>
 
-        {/* Divider */}
         <div className="h-8 w-px bg-gray-200"></div>
 
-        {/* User menu */}
         <div className="flex items-center gap-3">
-          <div className="hidden md:block text-right">
-            <p className="text-sm font-semibold text-gray-800">Admin</p>
-            <p className="text-xs text-gray-500">Administrador</p>
+          <div className="hidden text-right md:block">
+            <p className="text-sm font-semibold text-gray-800">{userName}</p>
+            <p className="text-xs text-gray-500">{userRole}</p>
           </div>
-          <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors">
-            <span className="text-white font-semibold text-sm">AD</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-white transition-colors hover:bg-blue-600">
+            <span className="text-sm font-semibold">{userInitials}</span>
           </div>
         </div>
 
-        {/* Logout button */}
         <button
-          onClick={() => window.location.href = '/auth/login'}
-          className="p-2 rounded-lg hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors"
+          onClick={doLogout}
+          className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600"
           title="Cerrar sesión"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Click outside to close notifications */}
       {showNotifications && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setShowNotifications(false)}
-        ></div>
+        <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)}></div>
       )}
     </div>
   );

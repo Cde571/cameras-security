@@ -1,5 +1,4 @@
-// src/components/navigation/Sidebar.tsx
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
@@ -15,6 +14,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { getCurrentUser } from "../../lib/services/authLocalService";
 
 interface MenuItem {
   id: string;
@@ -36,32 +36,61 @@ type SidebarUser = {
 };
 
 type SidebarProps = {
-  /** Si lo pasas desde Astro, el active funciona desde el primer render */
   currentPath?: string;
-  /** Opcional: info del usuario (footer) */
   user?: SidebarUser;
-  /** Opcional: badges dinámicos */
   badges?: {
     cotizaciones?: number;
     ordenes?: number;
   };
 };
 
+function roleLabel(role?: string) {
+  if (role === "admin") return "Administrador";
+  if (role === "tecnico") return "Técnico";
+  if (role === "ventas") return "Ventas";
+  return "Usuario";
+}
+
+function initialsFromName(name?: string) {
+  const base = (name || "Usuario").trim();
+  const parts = base.split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() || "").join("") || "US";
+}
+
 export default function Sidebar({ currentPath: currentPathProp, user, badges }: SidebarProps) {
   const [currentPath, setCurrentPath] = useState(currentPathProp ?? "/");
   const [openMenus, setOpenMenus] = useState<string[]>([]);
+  const [sessionUser, setSessionUser] = useState(() => getCurrentUser());
 
-  // Si no llega desde Astro, lo tomamos del navegador
   useEffect(() => {
     if (!currentPathProp && typeof window !== "undefined") {
       setCurrentPath(window.location.pathname || "/");
     }
+    setSessionUser(getCurrentUser());
   }, [currentPathProp]);
 
-  const menuItems: MenuItem[] = useMemo(
-    () => [
-      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
+  const effectiveUser = useMemo(() => {
+    if (sessionUser?.id) {
+      return {
+        name: sessionUser.name,
+        email: sessionUser.email,
+        initials: initialsFromName(sessionUser.name),
+        role: roleLabel(sessionUser.role),
+      };
+    }
+    return {
+      name: user?.name || "Admin",
+      email: user?.email || "admin@empresa.com",
+      initials: user?.initials || initialsFromName(user?.name || "Admin"),
+      role: user?.role || "Administrador",
+    };
+  }, [sessionUser, user]);
 
+  const isAdmin = sessionUser?.role === "admin" || effectiveUser.role === "Administrador";
+
+  const menuItems: MenuItem[] = useMemo(() => {
+    const base: MenuItem[] = [
+      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
       {
         id: "clientes",
         label: "Clientes",
@@ -72,7 +101,6 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           { label: "Importar/Exportar", href: "/clientes/exportar" },
         ],
       },
-
       {
         id: "productos",
         label: "Productos",
@@ -85,7 +113,6 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           { label: "Categorías y Marcas", href: "/productos/categorias" },
         ],
       },
-
       {
         id: "cotizaciones",
         label: "Cotizaciones",
@@ -97,7 +124,6 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           { label: "Plantillas de texto", href: "/cotizaciones/plantillas" },
         ],
       },
-
       {
         id: "ordenes",
         label: "Órdenes de trabajo",
@@ -109,7 +135,6 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           { label: "Checklists", href: "/ordenes/checklists" },
         ],
       },
-
       {
         id: "actas",
         label: "Actas de entrega",
@@ -119,7 +144,6 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           { label: "Nueva acta", href: "/actas/nueva" },
         ],
       },
-
       {
         id: "cobros",
         label: "Cuentas de cobro",
@@ -129,18 +153,16 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           { label: "Nueva cuenta", href: "/cobros/nueva" },
         ],
       },
-
       {
         id: "pagos",
         label: "Pagos y cartera",
         icon: CreditCard,
         submenu: [
-          { label: "Resumen", href: "/pagos" }, // ✅ ya tienes /pagos/index.astro
+          { label: "Resumen", href: "/pagos" },
           { label: "Registrar pago", href: "/pagos/registrar" },
           { label: "Cartera", href: "/pagos/cartera" },
         ],
       },
-
       {
         id: "reportes",
         label: "Reportes",
@@ -153,8 +175,10 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           { label: "Márgenes", href: "/reportes/margenes" },
         ],
       },
+    ];
 
-      {
+    if (isAdmin) {
+      base.push({
         id: "config",
         label: "Configuración",
         icon: Settings,
@@ -166,19 +190,20 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           { label: "Plantillas", href: "/config/plantillas" },
           { label: "Backup", href: "/config/backup" },
         ],
-      },
-    ],
-    [badges]
-  );
+      });
+    }
+
+    return base;
+  }, [badges, isAdmin]);
 
   const isActiveHref = (href: string) => {
     if (href === "/") return currentPath === "/";
     return currentPath === href || currentPath.startsWith(href + "/");
   };
 
-  const isSubmenuActive = (item: MenuItem) => item.submenu?.some((s) => isActiveHref(s.href)) ?? false;
+  const isSubmenuActive = (item: MenuItem) =>
+    item.submenu?.some((s) => isActiveHref(s.href)) ?? false;
 
-  // Auto-abrir el submenú del módulo activo
   useEffect(() => {
     const activeParents = menuItems
       .filter((i) => i.submenu && i.submenu.length > 0)
@@ -191,50 +216,59 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
   }, [currentPath, menuItems]);
 
   const toggleMenu = (menuId: string) => {
-    setOpenMenus((prev) => (prev.includes(menuId) ? prev.filter((id) => id !== menuId) : [...prev, menuId]));
+    setOpenMenus((prev) =>
+      prev.includes(menuId) ? prev.filter((id) => id !== menuId) : [...prev, menuId]
+    );
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      {/* Logo / Header */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xl">🎥</span>
+    <div className="flex h-full flex-col bg-white">
+      <div className="border-b border-gray-200 px-4 py-4">
+        <a href="/" className="flex items-center gap-3">
+          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl">
+            <img
+              src="/logo-omnivision.png"
+              alt="Logo Omnivisión"
+              className="h-full w-full object-contain scale-[1.65] drop-shadow-sm"
+              loading="eager"
+            />
           </div>
-          <div>
-            <h1 className="font-bold text-gray-800 text-lg leading-tight">Cotizaciones</h1>
-            <p className="text-xs text-gray-500">Sistema de gestión</p>
+
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[16px] font-extrabold leading-tight text-gray-900">
+              Cotizaciones
+            </h1>
+            <p className="mt-0.5 text-[11px] font-medium tracking-wide text-gray-500">
+              Sistema de gestión
+            </p>
           </div>
-        </div>
+        </a>
       </div>
 
-      {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const hasSubmenu = !!item.submenu?.length;
             const isOpen = openMenus.includes(item.id);
-
-            // “Activo” para padre sin href: si alguna ruta del submenu está activa
             const parentActive = item.href ? isActiveHref(item.href) : isSubmenuActive(item);
 
             return (
               <li key={item.id}>
-                {/* Menu principal */}
                 {item.href ? (
                   <a
                     href={item.href}
                     className={[
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all",
-                      parentActive ? "bg-blue-50 text-blue-600 font-semibold" : "text-gray-700 hover:bg-gray-50",
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all",
+                      parentActive
+                        ? "bg-blue-50 font-semibold text-blue-600"
+                        : "text-gray-700 hover:bg-gray-50",
                     ].join(" ")}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="h-5 w-5" />
                     <span className="flex-1 text-sm">{item.label}</span>
                     {item.badge ? (
-                      <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
                         {item.badge}
                       </span>
                     ) : null}
@@ -244,24 +278,31 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
                     type="button"
                     onClick={() => toggleMenu(item.id)}
                     className={[
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all",
-                      parentActive ? "bg-blue-50 text-blue-600 font-semibold" : "text-gray-700 hover:bg-gray-50",
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-all",
+                      parentActive
+                        ? "bg-blue-50 font-semibold text-blue-600"
+                        : "text-gray-700 hover:bg-gray-50",
                     ].join(" ")}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="h-5 w-5" />
                     <span className="flex-1 text-left text-sm">{item.label}</span>
                     {item.badge ? (
-                      <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
                         {item.badge}
                       </span>
                     ) : null}
-                    {hasSubmenu ? (isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />) : null}
+                    {hasSubmenu ? (
+                      isOpen ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )
+                    ) : null}
                   </button>
                 )}
 
-                {/* Submenu */}
                 {hasSubmenu && isOpen ? (
-                  <ul className="mt-1 ml-8 space-y-1">
+                  <ul className="ml-8 mt-1 space-y-1">
                     {item.submenu!.map((subItem) => {
                       const active = isActiveHref(subItem.href);
                       return (
@@ -269,8 +310,10 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
                           <a
                             href={subItem.href}
                             className={[
-                              "block px-3 py-2 text-sm rounded-lg transition-all",
-                              active ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                              "block rounded-lg px-3 py-2 text-sm transition-all",
+                              active
+                                ? "bg-blue-50 font-medium text-blue-600"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                             ].join(" ")}
                           >
                             {subItem.label}
@@ -286,18 +329,18 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
         </ul>
       </nav>
 
-      {/* Footer / User info */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">{user?.initials ?? "AD"}</span>
+      <div className="border-t border-gray-200 p-4">
+        <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500">
+            <span className="text-sm font-semibold text-white">{effectiveUser.initials}</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">{user?.role ?? "Admin"}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.email ?? "admin@empresa.com"}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-gray-800">{effectiveUser.role}</p>
+            <p className="truncate text-xs text-gray-500">{effectiveUser.email}</p>
           </div>
         </div>
       </div>
     </div>
   );
 }
+

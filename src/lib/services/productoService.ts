@@ -1,8 +1,4 @@
-﻿/**
- * API-first service with LocalService fallback.
- * - Front works now (localStorage)
- * - Later: implement /src/pages/api/... and these services will auto-use DB
- */
+﻿/** API-first service with LocalService fallback. */
 type FetchOpts = RequestInit & { json?: any };
 
 async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
@@ -24,62 +20,65 @@ async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
   if (!res.ok) {
-    const msg = (data && (data.message || data.error)) ? (data.message || data.error) : `HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
   }
 
   return data as T;
 }
 
-function hasWindow() {
-  return typeof window !== "undefined";
-}
+const hasWindow = () => typeof window !== "undefined";
 
 import * as Local from "./productoLocalService";
-export type { Producto, Categoria, Kit } from "./productoLocalService";
+export type Producto = Local.Producto;
+export type ProductoMeta = Local.ProductoMeta;
+export type Kit = Local.Kit;
 
 const API = "/api/productos";
 
 export async function listProductos(search = "") {
-  if (!hasWindow()) return [] as any[];
+  if (!hasWindow()) return [] as Local.Producto[];
   try {
-    return await apiFetch<any[]>(${API}?q=);
+    const q = search ? `?q=${encodeURIComponent(search)}` : "";
+    return await apiFetch<Local.Producto[]>(`${API}${q}`);
   } catch {
     return Local.listProductos(search);
   }
 }
 
 export async function getProducto(id: string) {
-  if (!hasWindow()) return null as any;
+  if (!hasWindow()) return null as Local.Producto | null;
   try {
-    return await apiFetch<any>(${API}/);
+    return await apiFetch<Local.Producto>(`${API}/${encodeURIComponent(id)}`);
   } catch {
     return Local.getProducto(id);
   }
 }
 
-export async function createProducto(data: any) {
+export async function createProducto(data: Omit<Local.Producto, "id" | "createdAt" | "updatedAt">) {
   if (!hasWindow()) throw new Error("createProducto solo en browser");
   try {
-    return await apiFetch<any>(API, { method: "POST", json: data });
+    return await apiFetch<Local.Producto>(API, { method: "POST", json: data });
   } catch {
-    return Local.createProducto(data);
+    return Local.createProducto(data as any);
   }
 }
 
-export async function updateProducto(id: string, patch: any) {
+export async function updateProducto(id: string, patch: Partial<Local.Producto>) {
   if (!hasWindow()) throw new Error("updateProducto solo en browser");
   try {
-    return await apiFetch<any>(${API}/, { method: "PATCH", json: patch });
+    return await apiFetch<Local.Producto>(`${API}/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      json: patch,
+    });
   } catch {
-    return Local.updateProducto(id, patch);
+    return Local.updateProducto(id, patch as any);
   }
 }
 
 export async function deleteProducto(id: string) {
   if (!hasWindow()) throw new Error("deleteProducto solo en browser");
   try {
-    await apiFetch(${API}/, { method: "DELETE" });
+    await apiFetch(`${API}/${encodeURIComponent(id)}`, { method: "DELETE" });
   } catch {
     Local.deleteProducto(id);
   }
