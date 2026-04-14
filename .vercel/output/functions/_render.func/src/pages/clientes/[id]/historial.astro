@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import MainLayout from "../../../layouts/MainLayout.astro";
+import ClienteHistorial from "../../../components/clientes/ClienteHistorial";
+
+const { id } = Astro.params;
+---
+
+<MainLayout title={`Historial cliente ${id}`}>
+  <ClienteHistorial client:load clienteId={id!} />
+</MainLayout>

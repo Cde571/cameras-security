@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import MainLayout from "../../layouts/MainLayout.astro";
+import CobroDetail from "../../components/cobros/CobroDetail";
+
+const { id } = Astro.params;
+---
+
+<MainLayout title={`Cobro ${id}`}>
+  <CobroDetail client:load cobroId={id!} />
+</MainLayout>

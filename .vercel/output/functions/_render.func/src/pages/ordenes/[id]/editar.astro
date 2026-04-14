@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import MainLayout from "../../../layouts/MainLayout.astro";
+import OrdenForm from "../../../components/ordenes/OrdenForm";
+
+const { id } = Astro.params;
+---
+
+<MainLayout title={`Editar orden ${id}`}>
+  <OrdenForm client:load mode="edit" ordenId={id!} />
+</MainLayout>

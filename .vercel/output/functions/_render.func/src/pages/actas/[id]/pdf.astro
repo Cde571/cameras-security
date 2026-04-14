@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import PrintLayout from "../../../layouts/PrintLayout.astro";
+import PDFPreview from "../../../components/actas/PDFPreview";
+
+const { id } = Astro.params;
+---
+
+<PrintLayout title={`PDF Acta ${id}`}>
+  <PDFPreview client:load actaId={id!} />
+</PrintLayout>

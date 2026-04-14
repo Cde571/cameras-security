@@ -1,0 +1,12 @@
+﻿---
+export const prerender = false;
+
+import MainLayout from "../../../layouts/MainLayout.astro";
+import EstadoCuenta from "../../../components/pagos/EstadoCuenta";
+
+const { clienteId } = Astro.params;
+---
+
+<MainLayout title={`Estado de cuenta ${clienteId}`}>
+  <EstadoCuenta client:load clienteId={clienteId!} />
+</MainLayout>

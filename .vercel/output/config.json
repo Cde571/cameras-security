@@ -1,0 +1,272 @@
+{
+	"version": 3,
+	"routes": [
+		{
+			"handle": "filesystem"
+		},
+		{
+			"src": "^/_astro/(.*)$",
+			"headers": {
+				"cache-control": "public, max-age=31536000, immutable"
+			},
+			"continue": true
+		},
+		{
+			"src": "^/_server-islands/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/_image/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/404/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/actas/nueva/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/actas/([^/]+?)/pdf/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/actas/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/actas/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/auth/login/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/auth/logout/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/auth/me/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/pdf/cotizacion/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/auth/login/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/clientes/exportar/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/clientes/nuevo/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/clientes/([^/]+?)/editar/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/clientes/([^/]+?)/historial/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/clientes/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/clientes/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cobros/nueva/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cobros/([^/]+?)/pdf/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cobros/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cobros/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/config/auditoria/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/config/backup/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/config/empresa/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/config/impuestos/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/config/numeracion/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/config/plantillas/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/config/usuarios/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/config/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cotizaciones/nueva/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cotizaciones/plantillas/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cotizaciones/([^/]+?)/editar/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cotizaciones/([^/]+?)/pdf/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cotizaciones/([^/]+?)/versionar/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cotizaciones/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/cotizaciones/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/dashboard/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/drizzle\\.config/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/ordenes/checklists/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/ordenes/nueva/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/ordenes/([^/]+?)/editar/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/ordenes/([^/]+?)/evidencias/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/ordenes/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/ordenes/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/pagos/cartera/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/pagos/estado-cuenta/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/pagos/registrar/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/pagos/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/productos/categorias/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/productos/importar/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/productos/kits/nuevo/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/productos/kits/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/productos/nuevo/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/productos/([^/]+?)/editar/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/productos/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/reportes/clientes/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/reportes/margenes/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/reportes/productos/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/reportes/ventas/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/reportes/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/test-tailwind/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/.*$",
+			"dest": "_render",
+			"status": 404
+		}
+	]
+}
