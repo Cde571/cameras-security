@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Trash2 } from "lucide-react";
-import { deleteKit, listKits, calcKitTotal } from "../../lib/services/productoLocalService";
+import { deleteKit, listKits, calcKitTotal } from "../../lib/repositories/productoRepo";
 
 function money(n: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n || 0);
@@ -99,3 +99,4 @@ export default function KitsList() {
     </div>
   );
 }
+

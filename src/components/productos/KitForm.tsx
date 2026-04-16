@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
-import { createKit, listProductos, type Producto } from "../../lib/services/productoLocalService";
+import { createKit, listProductos, type Producto } from "../../lib/repositories/productoRepo";
 
 type Item = { productId: string; qty: number };
 
@@ -180,3 +180,4 @@ export default function KitForm() {
     </form>
   );
 }
+

@@ -1,10 +1,10 @@
 import { e as createComponent, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout } from '../../chunks/MainLayout_CmTjyfoz.mjs';
+import { $ as $$MainLayout } from '../../chunks/MainLayout_DCJG7FNs.mjs';
 import { jsxs, jsx } from 'react/jsx-runtime';
 import { useState, useEffect } from 'react';
 import { Save } from 'lucide-react';
-import { b as getNumeracion, c as setNumeracion } from '../../chunks/configLocalService_C83i_HSE.mjs';
+import { b as getNumeracion, c as setNumeracion } from '../../chunks/configLocalService_DaV2BKqn.mjs';
 export { renderers } from '../../renderers.mjs';
 
 function NumeracionForm() {

@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import type { VentaMensual } from "../../lib/services/reporteLocalService";
+import type { VentaMensual } from "../../lib/repositories/reporteRepo";
 
 function money(n: number) {
   try { return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }); }
@@ -35,3 +35,4 @@ export default function VentasChart({ data, title }: { data: VentaMensual[]; tit
     </div>
   );
 }
+

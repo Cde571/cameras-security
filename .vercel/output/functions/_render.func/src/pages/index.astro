@@ -1,16 +1,10 @@
-﻿---
+---
 import MainLayout from "../layouts/MainLayout.astro";
-import KPICard from "../components/dashboard/KPICard";
-import QuickActions from "../components/dashboard/QuickActions";
-import RecentDocuments from "../components/dashboard/RecentDocuments";
-import AlertsList from "../components/dashboard/AlertsList";
-import { getDashboardData } from "../lib/server/dashboard";
+import DashboardLiveData from "../components/dashboard/DashboardLiveData";
 
 const pageTitle = "Dashboard - Sistema de Cotizaciones";
 const pageDescription =
   "Panel principal del sistema de gestión de cotizaciones y ventas";
-
-const dashboardData = await getDashboardData();
 
 const now = new Date();
 
@@ -24,8 +18,6 @@ const todayLong = new Intl.DateTimeFormat("es-CO", {
 const currentMonth = new Intl.DateTimeFormat("es-CO", {
   month: "long",
 }).format(now);
-
-const hasCriticalAlerts = dashboardData.alerts.some((a) => a.type === "danger");
 ---
 
 <MainLayout title={pageTitle} description={pageDescription}>
@@ -45,98 +37,5 @@ const hasCriticalAlerts = dashboardData.alerts.some((a) => a.type === "danger");
     </div>
   </section>
 
-  {!dashboardData.dbConnected && (
-    <section class="mb-6 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-      No se pudo conectar el dashboard a PostgreSQL: {dashboardData.error}
-    </section>
-  )}
-
-  <section class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-    <KPICard
-      title="Cotizado este mes"
-      value={dashboardData.kpis.totalCotizadoMes}
-      type="currency"
-      icon="dollar-sign"
-      trend={dashboardData.kpis.trendTotalCotizadoMes}
-      color="blue"
-      link="/cotizaciones"
-    />
-
-    <KPICard
-      title="Cotizaciones pendientes"
-      value={dashboardData.kpis.cotizacionesPendientes}
-      type="number"
-      icon="file-text"
-      color="orange"
-      link="/cotizaciones?status=pendiente"
-    />
-
-    <KPICard
-      title="Órdenes en curso"
-      value={dashboardData.kpis.ordenesEnCurso}
-      type="number"
-      icon="wrench"
-      color="green"
-      link="/ordenes?status=en_progreso"
-    />
-
-    <KPICard
-      title="Cartera pendiente"
-      value={dashboardData.kpis.carteraVencida}
-      type="currency"
-      icon="alert-circle"
-      color="red"
-      link="/pagos/cartera"
-    />
-  </section>
-
-  <section class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-    <div class="lg:col-span-2">
-      <QuickActions />
-    </div>
-
-    <div class="space-y-4">
-      {hasCriticalAlerts ? (
-        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Hay alertas críticas que requieren revisión inmediata.
-        </div>
-      ) : (
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          No hay alertas críticas registradas en este momento.
-        </div>
-      )}
-
-      <AlertsList alerts={dashboardData.alerts} />
-    </div>
-  </section>
-
-  <section class="rounded-xl border border-gray-200 bg-white shadow-md">
-    <div class="border-b border-gray-200 px-6 py-4">
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <h2 class="text-xl font-bold text-gray-800">Documentos recientes</h2>
-          <p class="mt-1 text-sm text-gray-500">
-            Últimos movimientos leídos desde PostgreSQL.
-          </p>
-        </div>
-
-        <a
-          href="/cotizaciones"
-          class="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
-        >
-          Ver todos
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </a>
-      </div>
-    </div>
-
-    <RecentDocuments documents={dashboardData.recentDocs} />
-  </section>
+  <DashboardLiveData client:load />
 </MainLayout>

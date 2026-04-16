@@ -1,6 +1,6 @@
 ﻿import React, { useState } from "react";
 import { Download, Upload } from "lucide-react";
-import { exportClientesCSV, importClientesCSV } from "../../lib/services/clienteLocalService";
+import { exportClientesCSV, importClientesCSV } from "../../lib/repositories/clienteRepo";
 
 export default function ClienteExport() {
   const [msg, setMsg] = useState<string>("");
@@ -86,3 +86,4 @@ export default function ClienteExport() {
     </div>
   );
 }
+

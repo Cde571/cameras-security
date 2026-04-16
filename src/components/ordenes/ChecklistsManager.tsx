@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Save, Trash2, Search } from "lucide-react";
-import { createChecklistTemplate, deleteChecklistTemplate, listChecklistTemplates, updateChecklistTemplate, type ChecklistTemplate } from "../../lib/services/ordenLocalService";
+import { createChecklistTemplate, deleteChecklistTemplate, listChecklistTemplates, updateChecklistTemplate, type ChecklistTemplate } from "../../lib/repositories/ordenRepo";
 
 export default function ChecklistsManager() {
   const [q, setQ] = useState("");
@@ -151,3 +151,4 @@ export default function ChecklistsManager() {
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { ChecklistItem } from "../../lib/services/ordenLocalService";
+import type { ChecklistItem } from "../../lib/repositories/ordenRepo";
 
 type Props = {
   checklist: ChecklistItem[];
@@ -55,3 +55,4 @@ export default function ChecklistEditor({ checklist, onChange }: Props) {
     </div>
   );
 }
+

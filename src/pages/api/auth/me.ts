@@ -1,69 +1,43 @@
-// src/pages/api/auth/me.ts
-import type { APIRoute } from "astro";
-import { verifySessionCookie } from "../../../lib/auth/session";
+﻿import type { APIRoute } from "astro";
+import { SESSION_COOKIE_NAME, verifySessionCookie } from "../../../lib/auth/session";
+import { getUserById } from "../../../lib/server/authUsers";
 
-export const prerender = false;
+export const GET: APIRoute = async ({ cookies }) => {
+  try {
+    const token = cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
+    const sessionUser = verifySessionCookie(token);
 
-function json(status: number, body: any) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-      "Vary": "Cookie",
-    },
-  });
-}
+    if (!sessionUser) {
+      return new Response(JSON.stringify({ ok: false, user: null }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-export const GET: APIRoute = async ({ locals, cookies }) => {
-  // ✅ DEV: no seguridad → nunca 401 (evita loops)
-  if (import.meta.env.DEV) {
-    const devUser = (locals as any)?.user ?? {
-      id: "dev-guest",
-      name: "Dev User",
-      email: "dev@local",
-      role: "admin",
-    };
+    const user = await getUserById(sessionUser.id);
 
-    return json(200, {
-      ok: true,
-      authenticated: true,
-      user: devUser,
-      devBypass: true,
+    if (!user) {
+      cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+      return new Response(JSON.stringify({ ok: false, user: null }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ ok: true, user }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
     });
-  }
-
-  // PROD: comportamiento real
-  let user: any = (locals as any)?.user ?? null;
-
-  if (!user?.id) {
-    const token = cookies.get("session")?.value;
-
-    if (!token) {
-      return json(401, { ok: false, authenticated: false, message: "No autenticado" });
-    }
-
-    try {
-      const session = verifySessionCookie(token);
-      if (!session?.id) {
-        cookies.delete("session", { path: "/" });
-        return json(401, { ok: false, authenticated: false, message: "Sesión inválida" });
+  } catch (error: any) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: error?.message || "No fue posible obtener la sesión",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
       }
-      user = session;
-    } catch {
-      cookies.delete("session", { path: "/" });
-      return json(401, { ok: false, authenticated: false, message: "Sesión expirada o inválida" });
-    }
+    );
   }
-
-  return json(200, {
-    ok: true,
-    authenticated: true,
-    user: {
-      id: user.id,
-      name: user.name ?? "",
-      email: user.email ?? "",
-      role: user.role ?? "user",
-    },
-  });
 };

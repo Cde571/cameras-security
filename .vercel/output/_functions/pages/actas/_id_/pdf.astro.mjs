@@ -5,7 +5,7 @@ import { jsxs, jsx } from 'react/jsx-runtime';
 import { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, RefreshCw, Download } from 'lucide-react';
 import { g as getActa } from '../../../chunks/actaLocalService_BDWGoUzL.mjs';
-import { g as getEmpresa } from '../../../chunks/configLocalService_C83i_HSE.mjs';
+import { g as getEmpresa } from '../../../chunks/configLocalService_DaV2BKqn.mjs';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 export { renderers } from '../../../renderers.mjs';
 

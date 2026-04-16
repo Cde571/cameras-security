@@ -1,20 +1,17 @@
+import { S as SESSION_COOKIE_NAME } from '../../../chunks/session_Z8sAdXym.mjs';
 export { renderers } from '../../../renderers.mjs';
 
-const prerender = false;
-const POST = async ({ cookies, redirect }) => {
-  cookies.delete("session", { path: "/" });
-  return redirect("/auth/login", 302);
-};
-const GET = async ({ cookies, redirect }) => {
-  cookies.delete("session", { path: "/" });
-  return redirect("/auth/login", 302);
+const POST = async ({ cookies }) => {
+  cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
+  });
 };
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   __proto__: null,
-  GET,
-  POST,
-  prerender
+  POST
 }, Symbol.toStringTag, { value: 'Module' }));
 
 const page = () => _page;

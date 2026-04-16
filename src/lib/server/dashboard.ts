@@ -1,4 +1,6 @@
-﻿export type DashboardKpis = {
+import { getSqlClient, testDbConnection } from "../db/client";
+
+export type DashboardKpis = {
   totalCotizadoMes: number;
   cotizacionesPendientes: number;
   ordenesEnCurso: number;
@@ -66,11 +68,23 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T, label: string): P
 
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    const [{ sqlClient, testDbConnection }] = await Promise.all([
-      import("../db/client"),
-    ]);
+    const sqlClient = getSqlClient();
+    const connected = await testDbConnection();
 
-    await testDbConnection();
+    if (!connected) {
+      return {
+        dbConnected: false,
+        error: "No fue posible conectar con PostgreSQL",
+        kpis: {
+          totalCotizadoMes: 0,
+          cotizacionesPendientes: 0,
+          ordenesEnCurso: 0,
+          carteraVencida: 0,
+        },
+        recentDocs: [],
+        alerts: [],
+      };
+    }
 
     const totalMesRows = await safeQuery(
       () => sqlClient`
@@ -115,9 +129,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     const carteraRows = await safeQuery(
       () => sqlClient`
         WITH pagos_por_cobro AS (
-          SELECT
-            cuenta_cobro_id,
-            COALESCE(SUM(valor), 0) AS pagado
+          SELECT cuenta_cobro_id, COALESCE(SUM(valor), 0) AS pagado
           FROM pagos
           GROUP BY cuenta_cobro_id
         )
@@ -196,9 +208,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     const overdueAlertRows = await safeQuery(
       () => sqlClient`
         WITH pagos_por_cobro AS (
-          SELECT
-            cuenta_cobro_id,
-            COALESCE(SUM(valor), 0) AS pagado
+          SELECT cuenta_cobro_id, COALESCE(SUM(valor), 0) AS pagado
           FROM pagos
           GROUP BY cuenta_cobro_id
         )

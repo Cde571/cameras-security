@@ -14,7 +14,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { getCurrentUser } from "../../lib/services/authLocalService";
+import { fetchCurrentUser, getCurrentUser, type User } from "../../lib/repositories/authRepo";
 
 interface MenuItem {
   id: string;
@@ -28,16 +28,8 @@ interface MenuItem {
   }[];
 }
 
-type SidebarUser = {
-  name: string;
-  email: string;
-  initials?: string;
-  role?: string;
-};
-
 type SidebarProps = {
   currentPath?: string;
-  user?: SidebarUser;
   badges?: {
     cotizaciones?: number;
     ordenes?: number;
@@ -57,16 +49,24 @@ function initialsFromName(name?: string) {
   return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() || "").join("") || "US";
 }
 
-export default function Sidebar({ currentPath: currentPathProp, user, badges }: SidebarProps) {
+export default function Sidebar({ currentPath: currentPathProp, badges }: SidebarProps) {
   const [currentPath, setCurrentPath] = useState(currentPathProp ?? "/");
   const [openMenus, setOpenMenus] = useState<string[]>([]);
-  const [sessionUser, setSessionUser] = useState(() => getCurrentUser());
+  const [sessionUser, setSessionUser] = useState<User | null>(() => getCurrentUser());
 
   useEffect(() => {
     if (!currentPathProp && typeof window !== "undefined") {
       setCurrentPath(window.location.pathname || "/");
     }
-    setSessionUser(getCurrentUser());
+
+    let mounted = true;
+    fetchCurrentUser().then((user) => {
+      if (mounted) setSessionUser(user);
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, [currentPathProp]);
 
   const effectiveUser = useMemo(() => {
@@ -78,15 +78,16 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
         role: roleLabel(sessionUser.role),
       };
     }
-    return {
-      name: user?.name || "Admin",
-      email: user?.email || "admin@empresa.com",
-      initials: user?.initials || initialsFromName(user?.name || "Admin"),
-      role: user?.role || "Administrador",
-    };
-  }, [sessionUser, user]);
 
-  const isAdmin = sessionUser?.role === "admin" || effectiveUser.role === "Administrador";
+    return {
+      name: "Usuario",
+      email: "",
+      initials: "US",
+      role: "Usuario",
+    };
+  }, [sessionUser]);
+
+  const isAdmin = sessionUser?.role === "admin";
 
   const menuItems: MenuItem[] = useMemo(() => {
     const base: MenuItem[] = [
@@ -336,7 +337,7 @@ export default function Sidebar({ currentPath: currentPathProp, user, badges }: 
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-gray-800">{effectiveUser.role}</p>
-            <p className="truncate text-xs text-gray-500">{effectiveUser.email}</p>
+            <p className="truncate text-xs text-gray-500">{effectiveUser.email || "Sesión activa"}</p>
           </div>
         </div>
       </div>

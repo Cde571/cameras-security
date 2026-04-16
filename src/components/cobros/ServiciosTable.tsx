@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { ServicioCobro } from "../../lib/services/cobroPagoLocalService";
+import type { ServicioCobro } from "../../lib/repositories/cobroPagoRepo";
 
 type Props = {
   value: ServicioCobro[];
@@ -85,3 +85,4 @@ export default function ServiciosTable({ value, onChange }: Props) {
     </div>
   );
 }
+

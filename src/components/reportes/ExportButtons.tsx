@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { Download } from "lucide-react";
-import { exportVentasCSV } from "../../lib/services/reporteLocalService";
+import { exportVentasCSV } from "../../lib/repositories/reporteRepo";
 
 function downloadText(filename: string, content: string, mime = "text/plain") {
   const blob = new Blob([content], { type: mime });
@@ -23,3 +23,4 @@ export default function ExportButtons() {
     </button>
   );
 }
+

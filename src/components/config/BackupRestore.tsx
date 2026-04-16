@@ -1,6 +1,6 @@
 ﻿import React, { useRef, useState } from "react";
 import { Download, Upload } from "lucide-react";
-import { exportBackupJSON, restoreBackupJSON } from "../../lib/services/configLocalService";
+import { exportBackupJSON, restoreBackupJSON } from "../../lib/repositories/configRepo";
 
 function downloadText(filename: string, content: string, mime = "application/json") {
   const blob = new Blob([content], { type: mime });
@@ -70,3 +70,4 @@ export default function BackupRestore() {
     </div>
   );
 }
+

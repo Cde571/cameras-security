@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { DollarSign, Eye } from "lucide-react";
-import { getCartera } from "../../lib/services/cobroPagoLocalService";
+import { getCartera } from "../../lib/repositories/cobroPagoRepo";
 
 export default function CarteraTable() {
   const [refresh, setRefresh] = useState(0);
@@ -94,3 +94,4 @@ export default function CarteraTable() {
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Eye, Pencil, Trash2, ClipboardList, Image } from "lucide-react";
-import { deleteOrden, listOrdenes } from "../../lib/services/ordenLocalService";
+import { deleteOrden, listOrdenes } from "../../lib/repositories/ordenRepo";
 
 export default function OrdenesList() {
   const [q, setQ] = useState("");
@@ -122,3 +122,4 @@ export default function OrdenesList() {
     </div>
   );
 }
+

@@ -1,52 +1,37 @@
-import { v as verifySessionCookie } from '../../../chunks/session_DJwukWEj.mjs';
+import { S as SESSION_COOKIE_NAME, a as verifySessionCookie } from '../../../chunks/session_Z8sAdXym.mjs';
 export { renderers } from '../../../renderers.mjs';
 
-const prerender = false;
-function json(status, body) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-      "Vary": "Cookie"
+const GET = async ({ cookies }) => {
+  try {
+    const token = cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
+    const user = verifySessionCookie(token);
+    if (!user) {
+      return new Response(JSON.stringify({ ok: false, user: null }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
     }
-  });
-}
-const GET = async ({ locals, cookies }) => {
-  let user = locals?.user ?? null;
-  if (!user?.id) {
-    const token = cookies.get("session")?.value;
-    if (!token) {
-      return json(401, { ok: false, authenticated: false, message: "No autenticado" });
-    }
-    try {
-      const session = verifySessionCookie(token);
-      if (!session?.id) {
-        cookies.delete("session", { path: "/" });
-        return json(401, { ok: false, authenticated: false, message: "Sesión inválida" });
+    return new Response(JSON.stringify({ ok: true, user }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: error?.message || "No fue posible obtener la sesión"
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
       }
-      user = session;
-    } catch {
-      cookies.delete("session", { path: "/" });
-      return json(401, { ok: false, authenticated: false, message: "Sesión expirada o inválida" });
-    }
+    );
   }
-  return json(200, {
-    ok: true,
-    authenticated: true,
-    user: {
-      id: user.id,
-      name: user.name ?? "",
-      email: user.email ?? "",
-      role: user.role ?? "user"
-    }
-  });
 };
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   __proto__: null,
-  GET,
-  prerender
+  GET
 }, Symbol.toStringTag, { value: 'Module' }));
 
 const page = () => _page;

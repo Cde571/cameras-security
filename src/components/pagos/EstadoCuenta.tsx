@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { getCliente } from "../../lib/services/clienteLocalService";
-import { getEstadoCuenta } from "../../lib/services/cobroPagoLocalService";
+import { getCliente } from "../../lib/repositories/clienteRepo";
+import { getEstadoCuenta } from "../../lib/repositories/cobroPagoRepo";
 
 export default function EstadoCuenta({ clienteId }: { clienteId: string }) {
   const [refresh, setRefresh] = useState(0);
@@ -103,3 +103,4 @@ export default function EstadoCuenta({ clienteId }: { clienteId: string }) {
     </div>
   );
 }
+

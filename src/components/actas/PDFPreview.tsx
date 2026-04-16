@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Download, RefreshCw } from "lucide-react";
-import { getActa, type ActaEntrega } from "../../lib/services/actaLocalService";
-import { getEmpresa } from "../../lib/services/configLocalService";
+import { getActa, type ActaEntrega } from "../../lib/repositories/actaRepo";
+import { getEmpresa } from "../../lib/repositories/configRepo";
 import { buildActaPDF, type ActaPayload } from "../../lib/pdf/actaPDF";
 
 function safe<T>(...values: T[]): T | undefined {
@@ -177,3 +177,4 @@ export default function PDFPreview({ actaId }: { actaId: string }) {
     </div>
   );
 }
+

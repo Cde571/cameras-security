@@ -4,8 +4,8 @@ import { $ as $$PrintLayout } from '../../../chunks/PrintLayout_CAqctmGb.mjs';
 import { jsxs, jsx } from 'react/jsx-runtime';
 import { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, RefreshCw, Download } from 'lucide-react';
-import { g as getCobro } from '../../../chunks/cobroPagoLocalService_BSn6kzk1.mjs';
-import { g as getEmpresa, l as listPlantillas } from '../../../chunks/configLocalService_C83i_HSE.mjs';
+import { g as getCobro } from '../../../chunks/cobroPagoLocalService_C_z-2DSE.mjs';
+import { g as getEmpresa, l as listPlantillas } from '../../../chunks/configLocalService_DaV2BKqn.mjs';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 export { renderers } from '../../../renderers.mjs';
 

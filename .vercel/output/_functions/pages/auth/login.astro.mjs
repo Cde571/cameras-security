@@ -1,8 +1,8 @@
 import { e as createComponent, k as renderComponent, r as renderTemplate, m as maybeRenderHead, l as renderSlot } from '../../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout, l as listAuthUsers, g as getSession, a as login } from '../../chunks/MainLayout_CmTjyfoz.mjs';
+import { $ as $$MainLayout, f as fetchCurrentUser, l as login } from '../../chunks/MainLayout_DCJG7FNs.mjs';
 import { jsx, jsxs } from 'react/jsx-runtime';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ShieldCheck, Mail, Lock, LogIn } from 'lucide-react';
 export { renderers } from '../../renderers.mjs';
 
@@ -10,23 +10,31 @@ const $$AuthLayout = createComponent(($$result, $$props, $$slots) => {
   return renderTemplate`${renderComponent($$result, "MainLayout", $$MainLayout, { "title": "Acceso | Sistema de Cotizaciones" }, { "default": ($$result2) => renderTemplate` ${maybeRenderHead()}<div class="min-h-screen flex items-center justify-center bg-slate-100"> ${renderSlot($$result2, $$slots["default"])} </div> ` })}`;
 }, "C:/Users/caco2/Documents/Projects/technological-cameras/src/layouts/AuthLayout.astro", void 0);
 
+function getNextUrl() {
+  if (typeof window === "undefined") return "/";
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next || "/";
+}
 function LoginForm() {
   const [email, setEmail] = useState("admin@empresa.com");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
-  const demoUsers = useMemo(() => {
-    if (typeof window === "undefined") return [];
-    return listAuthUsers().slice(0, 3);
-  }, []);
   useEffect(() => {
-    const session = getSession();
-    if (session?.user?.id) {
-      window.location.href = "/";
-      return;
-    }
-    setChecking(false);
+    let mounted = true;
+    (async () => {
+      const current = await fetchCurrentUser();
+      if (!mounted) return;
+      if (current?.id) {
+        window.location.href = getNextUrl();
+        return;
+      }
+      setChecking(false);
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
   const canSubmit = useMemo(() => {
     return email.trim().length >= 5 && password.trim().length >= 3 && !loading;
@@ -36,10 +44,10 @@ function LoginForm() {
     setError("");
     setLoading(true);
     try {
-      login(email, password);
-      window.location.href = "/";
+      await login(email, password);
+      window.location.href = getNextUrl();
     } catch (err) {
-      setError(err?.message ?? "Error al iniciar sesión");
+      setError(err?.message || "No fue posible iniciar sesión");
       setLoading(false);
     }
   };
@@ -50,7 +58,7 @@ function LoginForm() {
     /* @__PURE__ */ jsxs("div", { className: "border-b border-gray-200 p-6", children: [
       /* @__PURE__ */ jsx("div", { className: "mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600", children: /* @__PURE__ */ jsx(ShieldCheck, { className: "h-5 w-5" }) }),
       /* @__PURE__ */ jsx("h1", { className: "text-xl font-bold text-gray-900", children: "Iniciar sesión" }),
-      /* @__PURE__ */ jsx("p", { className: "mt-1 text-sm text-gray-500", children: "Acceso según usuarios y roles configurados en el sistema." })
+      /* @__PURE__ */ jsx("p", { className: "mt-1 text-sm text-gray-500", children: "Acceso con cookie de sesión segura y middleware." })
     ] }),
     /* @__PURE__ */ jsxs("form", { onSubmit, className: "space-y-4 p-6", children: [
       error ? /* @__PURE__ */ jsx("div", { className: "rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700", children: error }) : null,
@@ -101,26 +109,17 @@ function LoginForm() {
         }
       ),
       /* @__PURE__ */ jsxs("div", { className: "rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600", children: [
-        /* @__PURE__ */ jsx("p", { className: "mb-2 font-semibold text-gray-700", children: "Usuarios demo actuales" }),
-        /* @__PURE__ */ jsx("div", { className: "space-y-1", children: demoUsers.map((u) => /* @__PURE__ */ jsxs(
-          "button",
-          {
-            type: "button",
-            onClick: () => {
-              setEmail(u.email);
-              setPassword(u.password);
-            },
-            className: "flex w-full items-center justify-between rounded-lg bg-white px-3 py-2 text-left hover:border-blue-200 hover:bg-blue-50",
-            children: [
-              /* @__PURE__ */ jsxs("span", { children: [
-                /* @__PURE__ */ jsx("span", { className: "font-medium text-gray-800", children: u.email }),
-                /* @__PURE__ */ jsx("span", { className: "ml-2 uppercase text-[10px] text-gray-500", children: u.rol })
-              ] }),
-              /* @__PURE__ */ jsx("span", { className: "text-gray-500", children: u.password })
-            ]
-          },
-          u.id
-        )) })
+        "Usuario inicial:",
+        /* @__PURE__ */ jsxs("div", { className: "mt-2 rounded-lg bg-white px-3 py-2", children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: "Email:" }),
+            " admin@empresa.com"
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: "Password:" }),
+            " admin123"
+          ] })
+        ] })
       ] })
     ] })
   ] }) });

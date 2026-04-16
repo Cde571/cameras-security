@@ -164,10 +164,6 @@
 			"dest": "_render"
 		},
 		{
-			"src": "^/drizzle\\.config/?$",
-			"dest": "_render"
-		},
-		{
 			"src": "^/ordenes/checklists/?$",
 			"dest": "_render"
 		},

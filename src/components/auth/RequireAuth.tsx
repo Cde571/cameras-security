@@ -1,40 +1,38 @@
 ﻿import React, { useEffect, useState } from "react";
-import { getCurrentUser } from "../../lib/services/authLocalService";
+import { fetchCurrentUser } from "../../lib/repositories/authRepo";
 
 function isPublicPath(pathname: string) {
   return pathname.startsWith("/auth/login") || pathname.startsWith("/api/");
-}
-
-function canAccess(pathname: string, role?: string) {
-  if (!role) return false;
-  if (pathname.startsWith("/config")) return role === "admin";
-  return true;
 }
 
 export default function RequireAuth() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const pathname = window.location.pathname || "/";
-    if (isPublicPath(pathname)) {
-      setChecking(false);
-      return;
-    }
+    let mounted = true;
 
-    const current = getCurrentUser();
+    (async () => {
+      const pathname = window.location.pathname || "/";
 
-    if (!current?.id) {
-      const next = encodeURIComponent(pathname + window.location.search);
-      window.location.replace(`/auth/login?next=${next}`);
-      return;
-    }
+      if (isPublicPath(pathname)) {
+        if (mounted) setChecking(false);
+        return;
+      }
 
-    if (!canAccess(pathname, current.role)) {
-      window.location.replace("/");
-      return;
-    }
+      const user = await fetchCurrentUser();
 
-    setChecking(false);
+      if (!user?.id) {
+        const next = encodeURIComponent(pathname + window.location.search);
+        window.location.replace(`/auth/login?next=${next}`);
+        return;
+      }
+
+      if (mounted) setChecking(false);
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (!checking) return null;
@@ -47,3 +45,4 @@ export default function RequireAuth() {
     </div>
   );
 }
+

@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, FileText, DollarSign } from "lucide-react";
-import { getCobro, type CuentaCobro } from "../../lib/services/cobroPagoLocalService";
+import { getCobro, type CuentaCobro } from "../../lib/flow/data";
+import { buildFlowUrl } from "../../lib/flow/context";
 
 export default function CobroDetail({ cobroId }: { cobroId: string }) {
   const [cc, setCc] = useState<CuentaCobro | null>(null);
@@ -10,6 +11,11 @@ export default function CobroDetail({ cobroId }: { cobroId: string }) {
   }, [cobroId]);
 
   const money = useMemo(() => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }), []);
+
+  const pagoLink = useMemo(() => {
+    if (!cc) return "/pagos/registrar";
+    return buildFlowUrl("/pagos/registrar", { clienteId: cc.clienteId, cobroId: cc.id, from: "cobro" });
+  }, [cc]);
 
   if (!cc) {
     return (
@@ -35,14 +41,14 @@ export default function CobroDetail({ cobroId }: { cobroId: string }) {
           <a href={`/cobros/${cc.id}/pdf`} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
             <FileText className="h-4 w-4" /> PDF
           </a>
-          <a href="/pagos/registrar" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+          <a href={pagoLink} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
             <DollarSign className="h-4 w-4" /> Registrar pago
           </a>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <section className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <section className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
           <div>
             <p className="text-xs font-semibold text-gray-500">Cliente</p>
             <p className="font-semibold text-gray-900">{cc.cliente?.nombre}</p>
@@ -80,7 +86,7 @@ export default function CobroDetail({ cobroId }: { cobroId: string }) {
           ) : null}
         </section>
 
-        <aside className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-2">
+        <aside className="space-y-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h3 className="font-semibold text-gray-900">Totales</h3>
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Subtotal</span>
@@ -90,13 +96,16 @@ export default function CobroDetail({ cobroId }: { cobroId: string }) {
             <span className="text-gray-600">IVA</span>
             <span className="font-semibold">{money.format(cc.iva)}</span>
           </div>
-          <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
-            <span className="text-gray-900 font-semibold">Total</span>
-            <span className="text-gray-900 font-black">{money.format(cc.total)}</span>
+          <div className="flex items-center justify-between border-t border-gray-200 pt-2">
+            <span className="font-semibold text-gray-900">Total</span>
+            <span className="font-black text-gray-900">{money.format(cc.total)}</span>
           </div>
 
-          <div className="pt-3 border-t border-gray-200 space-y-2">
-            <a className="block rounded-lg border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 text-sm" href={`/pagos/estado-cuenta/${cc.clienteId}`}>
+          <div className="space-y-2 border-t border-gray-200 pt-3">
+            <a className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50" href={pagoLink}>
+              Registrar pago de este cobro
+            </a>
+            <a className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50" href={`/pagos/estado-cuenta/${cc.clienteId}`}>
               Ver estado de cuenta del cliente
             </a>
           </div>

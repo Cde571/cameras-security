@@ -1,7 +1,7 @@
 ﻿import React, { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { listProductos, listKits, calcKitTotal } from "../../lib/services/productoLocalService";
-import type { CotizacionItem } from "../../lib/services/cotizacionLocalService";
+import { listProductos, listKits, calcKitTotal } from "../../lib/repositories/productoRepo";
+import type { CotizacionItem } from "../../lib/repositories/cotizacionRepo";
 
 type Props = {
   onAdd: (item: CotizacionItem) => void;
@@ -192,3 +192,4 @@ export default function ProductoSelector({ onAdd }: Props) {
     </div>
   );
 }
+

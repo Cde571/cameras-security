@@ -5,7 +5,7 @@ import {
   listUsuarios,
   upsertUsuario,
   type Usuario,
-} from "../../lib/services/configLocalService";
+} from "../../lib/repositories/configRepo";
 
 export default function UsuariosManager() {
   const [list, setList] = useState<Usuario[]>([]);
@@ -224,3 +224,4 @@ export default function UsuariosManager() {
     </div>
   );
 }
+

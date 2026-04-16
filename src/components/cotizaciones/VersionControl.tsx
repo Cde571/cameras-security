@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { ArrowLeft, GitBranch } from "lucide-react";
-import { createVersionFrom, getCotizacion } from "../../lib/services/cotizacionLocalService";
+import { createVersionFrom, getCotizacion } from "../../lib/repositories/cotizacionRepo";
 
 export default function VersionControl({ cotizacionId }: { cotizacionId: string }) {
   const [num, setNum] = useState<string>("");
@@ -46,3 +46,4 @@ export default function VersionControl({ cotizacionId }: { cotizacionId: string 
     </div>
   );
 }
+

@@ -1,10 +1,10 @@
 import { e as createComponent, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout } from '../../chunks/MainLayout_CmTjyfoz.mjs';
+import { $ as $$MainLayout } from '../../chunks/MainLayout_DCJG7FNs.mjs';
 import { jsxs, jsx } from 'react/jsx-runtime';
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Save } from 'lucide-react';
-import { l as listPlantillas, f as upsertPlantilla, h as deletePlantilla } from '../../chunks/configLocalService_C83i_HSE.mjs';
+import { l as listPlantillas, f as upsertPlantilla, h as deletePlantilla } from '../../chunks/configLocalService_DaV2BKqn.mjs';
 export { renderers } from '../../renderers.mjs';
 
 function PlantillasManager() {

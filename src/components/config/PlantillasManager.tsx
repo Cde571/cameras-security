@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Save, Trash2 } from "lucide-react";
-import { deletePlantilla, listPlantillas, upsertPlantilla, type Plantilla } from "../../lib/services/configLocalService";
+import { deletePlantilla, listPlantillas, upsertPlantilla, type Plantilla } from "../../lib/repositories/configRepo";
 
 export default function PlantillasManager() {
   const [list, setList] = useState<Plantilla[]>([]);
@@ -128,3 +128,4 @@ export default function PlantillasManager() {
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, FileText } from "lucide-react";
-import { getActa, type ActaEntrega } from "../../lib/services/actaLocalService";
+import { getActa, type ActaEntrega } from "../../lib/repositories/actaRepo";
 
 export default function ActaDetail({ actaId }: { actaId: string }) {
   const [acta, setActa] = useState<ActaEntrega | null>(null);
@@ -102,3 +102,4 @@ export default function ActaDetail({ actaId }: { actaId: string }) {
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Download, Upload, Pencil, Eye, Trash2, History } from "lucide-react";
-import { deleteCliente, listClientes } from "../../lib/services/clienteLocalService";
+import { deleteCliente, listClientes } from "../../lib/repositories/clienteRepo";
 
 export default function ClientesList() {
   const [q, setQ] = useState("");
@@ -135,3 +135,4 @@ export default function ClientesList() {
     </div>
   );
 }
+

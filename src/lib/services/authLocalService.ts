@@ -1,103 +1,106 @@
-﻿import {
-  getUsuarioByEmail,
-  listUsuarios,
-  setUsuarioUltimoAcceso,
-  type Usuario,
-  type UsuarioRol,
-} from "./configLocalService";
+﻿export type UserRole = "admin" | "tecnico" | "ventas";
 
 export type User = {
   id: string;
   name: string;
   email: string;
-  role: UsuarioRol;
+  role: UserRole;
 };
 
-export type Session = {
-  token: string;
-  user: User;
-  createdAt: string;
-};
+const CACHE_KEY = "coti_auth_user_v3";
 
-const SESSION_KEY = "coti_session_v1";
-const SPLASH_FLAG_KEY = "coti_show_login_splash";
-
-function safeParse<T>(value: string | null, fallback: T): T {
+function readCache(): User | null {
+  if (typeof window === "undefined") return null;
   try {
-    return value ? (JSON.parse(value) as T) : fallback;
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
   } catch {
-    return fallback;
+    return null;
   }
 }
 
-function uid() {
-  return globalThis.crypto?.randomUUID?.() ?? `tok_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+function writeCache(user: User | null) {
+  if (typeof window === "undefined") return;
+  if (!user) {
+    sessionStorage.removeItem(CACHE_KEY);
+    return;
+  }
+  sessionStorage.setItem(CACHE_KEY, JSON.stringify(user));
 }
 
-function mapUsuarioToUser(u: Usuario): User {
-  return {
-    id: u.id,
-    name: u.nombre,
-    email: u.email,
-    role: u.rol,
-  };
-}
-
-export function getSession(): Session | null {
-  if (typeof window === "undefined") return null;
-  return safeParse<Session | null>(localStorage.getItem(SESSION_KEY), null);
+function clearLegacy() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("coti_session_v1");
+  sessionStorage.removeItem("coti_show_login_splash");
 }
 
 export function getCurrentUser(): User | null {
-  return getSession()?.user ?? null;
+  return readCache();
 }
 
-export function isAuthenticated(): boolean {
-  return !!getSession()?.user?.id;
+export async function fetchCurrentUser(): Promise<User | null> {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const res = await fetch("/api/auth/me", {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+
+    if (!res.ok) {
+      writeCache(null);
+      return null;
+    }
+
+    const data = await res.json();
+    const user = (data?.user ?? null) as User | null;
+    writeCache(user);
+    return user;
+  } catch {
+    writeCache(null);
+    return null;
+  }
 }
 
-export function logout() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(SESSION_KEY);
-}
+export async function login(email: string, password: string): Promise<User> {
+  clearLegacy();
 
-export function listAuthUsers() {
-  return listUsuarios();
-}
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
 
-export function login(email: string, password: string): Session {
-  if (typeof window === "undefined") throw new Error("login debe ejecutarse en el browser");
+  const data = await res.json().catch(() => ({}));
 
-  const e = (email || "").trim().toLowerCase();
-  const p = (password || "").trim();
-
-  if (!e || !p) {
-    throw new Error("Ingresa email y contraseña");
+  if (!res.ok || !data?.user) {
+    throw new Error(data?.error || "No fue posible iniciar sesión");
   }
 
-  const found = getUsuarioByEmail(e);
-  if (!found || found.password !== p) {
-    throw new Error("Credenciales inválidas");
-  }
-
-  if (!found.activo) {
-    throw new Error("Este usuario está inactivo");
-  }
-
-  const session: Session = {
-    token: uid(),
-    user: mapUsuarioToUser(found),
-    createdAt: new Date().toISOString(),
-  };
-
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  sessionStorage.setItem(SPLASH_FLAG_KEY, "1");
-  setUsuarioUltimoAcceso(found.id, session.createdAt);
-
-  return session;
+  writeCache(data.user);
+  sessionStorage.setItem("coti_show_login_splash", "1");
+  return data.user as User;
 }
 
-export function hasRole(roles: UsuarioRol[]) {
+export async function logout() {
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+  } finally {
+    writeCache(null);
+    clearLegacy();
+  }
+}
+
+export function isAuthenticated() {
+  return !!getCurrentUser()?.id;
+}
+
+export function hasRole(roles: UserRole[]) {
   const current = getCurrentUser();
   if (!current) return false;
   return roles.includes(current.role);

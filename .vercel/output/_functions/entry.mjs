@@ -1,6 +1,6 @@
 import { renderers } from './renderers.mjs';
-import { c as createExports, s as serverEntrypointModule } from './chunks/_@astrojs-ssr-adapter_BK8gvea7.mjs';
-import { manifest } from './manifest_h6hBzswY.mjs';
+import { c as createExports, s as serverEntrypointModule } from './chunks/_@astrojs-ssr-adapter_C4jILRWj.mjs';
+import { manifest } from './manifest_Cf7fOjTG.mjs';
 
 const serverIslandMap = new Map();;
 
@@ -41,31 +41,30 @@ const _page33 = () => import('./pages/cotizaciones/_id_/versionar.astro.mjs');
 const _page34 = () => import('./pages/cotizaciones/_id_.astro.mjs');
 const _page35 = () => import('./pages/cotizaciones.astro.mjs');
 const _page36 = () => import('./pages/dashboard.astro.mjs');
-const _page37 = () => import('./pages/drizzle.config.astro.mjs');
-const _page38 = () => import('./pages/ordenes/checklists.astro.mjs');
-const _page39 = () => import('./pages/ordenes/nueva.astro.mjs');
-const _page40 = () => import('./pages/ordenes/_id_/editar.astro.mjs');
-const _page41 = () => import('./pages/ordenes/_id_/evidencias.astro.mjs');
-const _page42 = () => import('./pages/ordenes/_id_.astro.mjs');
-const _page43 = () => import('./pages/ordenes.astro.mjs');
-const _page44 = () => import('./pages/pagos/cartera.astro.mjs');
-const _page45 = () => import('./pages/pagos/estado-cuenta/_clienteid_.astro.mjs');
-const _page46 = () => import('./pages/pagos/registrar.astro.mjs');
-const _page47 = () => import('./pages/pagos.astro.mjs');
-const _page48 = () => import('./pages/productos/categorias.astro.mjs');
-const _page49 = () => import('./pages/productos/importar.astro.mjs');
-const _page50 = () => import('./pages/productos/kits/nuevo.astro.mjs');
-const _page51 = () => import('./pages/productos/kits.astro.mjs');
-const _page52 = () => import('./pages/productos/nuevo.astro.mjs');
-const _page53 = () => import('./pages/productos/_id_/editar.astro.mjs');
-const _page54 = () => import('./pages/productos.astro.mjs');
-const _page55 = () => import('./pages/reportes/clientes.astro.mjs');
-const _page56 = () => import('./pages/reportes/margenes.astro.mjs');
-const _page57 = () => import('./pages/reportes/productos.astro.mjs');
-const _page58 = () => import('./pages/reportes/ventas.astro.mjs');
-const _page59 = () => import('./pages/reportes.astro.mjs');
-const _page60 = () => import('./pages/test-tailwind.astro.mjs');
-const _page61 = () => import('./pages/index.astro.mjs');
+const _page37 = () => import('./pages/ordenes/checklists.astro.mjs');
+const _page38 = () => import('./pages/ordenes/nueva.astro.mjs');
+const _page39 = () => import('./pages/ordenes/_id_/editar.astro.mjs');
+const _page40 = () => import('./pages/ordenes/_id_/evidencias.astro.mjs');
+const _page41 = () => import('./pages/ordenes/_id_.astro.mjs');
+const _page42 = () => import('./pages/ordenes.astro.mjs');
+const _page43 = () => import('./pages/pagos/cartera.astro.mjs');
+const _page44 = () => import('./pages/pagos/estado-cuenta/_clienteid_.astro.mjs');
+const _page45 = () => import('./pages/pagos/registrar.astro.mjs');
+const _page46 = () => import('./pages/pagos.astro.mjs');
+const _page47 = () => import('./pages/productos/categorias.astro.mjs');
+const _page48 = () => import('./pages/productos/importar.astro.mjs');
+const _page49 = () => import('./pages/productos/kits/nuevo.astro.mjs');
+const _page50 = () => import('./pages/productos/kits.astro.mjs');
+const _page51 = () => import('./pages/productos/nuevo.astro.mjs');
+const _page52 = () => import('./pages/productos/_id_/editar.astro.mjs');
+const _page53 = () => import('./pages/productos.astro.mjs');
+const _page54 = () => import('./pages/reportes/clientes.astro.mjs');
+const _page55 = () => import('./pages/reportes/margenes.astro.mjs');
+const _page56 = () => import('./pages/reportes/productos.astro.mjs');
+const _page57 = () => import('./pages/reportes/ventas.astro.mjs');
+const _page58 = () => import('./pages/reportes.astro.mjs');
+const _page59 = () => import('./pages/test-tailwind.astro.mjs');
+const _page60 = () => import('./pages/index.astro.mjs');
 const pageMap = new Map([
     ["node_modules/astro/dist/assets/endpoint/generic.js", _page0],
     ["src/pages/404.astro", _page1],
@@ -104,31 +103,30 @@ const pageMap = new Map([
     ["src/pages/cotizaciones/[id].astro", _page34],
     ["src/pages/cotizaciones/index.astro", _page35],
     ["src/pages/dashboard.astro", _page36],
-    ["src/pages/drizzle.config.ts", _page37],
-    ["src/pages/ordenes/checklists.astro", _page38],
-    ["src/pages/ordenes/nueva.astro", _page39],
-    ["src/pages/ordenes/[id]/editar.astro", _page40],
-    ["src/pages/ordenes/[id]/evidencias.astro", _page41],
-    ["src/pages/ordenes/[id].astro", _page42],
-    ["src/pages/ordenes/index.astro", _page43],
-    ["src/pages/pagos/cartera.astro", _page44],
-    ["src/pages/pagos/estado-cuenta/[clienteId].astro", _page45],
-    ["src/pages/pagos/registrar.astro", _page46],
-    ["src/pages/pagos/index.astro", _page47],
-    ["src/pages/productos/categorias.astro", _page48],
-    ["src/pages/productos/importar.astro", _page49],
-    ["src/pages/productos/kits/nuevo.astro", _page50],
-    ["src/pages/productos/kits.astro", _page51],
-    ["src/pages/productos/nuevo.astro", _page52],
-    ["src/pages/productos/[id]/editar.astro", _page53],
-    ["src/pages/productos/index.astro", _page54],
-    ["src/pages/reportes/clientes.astro", _page55],
-    ["src/pages/reportes/margenes.astro", _page56],
-    ["src/pages/reportes/productos.astro", _page57],
-    ["src/pages/reportes/ventas.astro", _page58],
-    ["src/pages/reportes/index.astro", _page59],
-    ["src/pages/test-tailwind.astro", _page60],
-    ["src/pages/index.astro", _page61]
+    ["src/pages/ordenes/checklists.astro", _page37],
+    ["src/pages/ordenes/nueva.astro", _page38],
+    ["src/pages/ordenes/[id]/editar.astro", _page39],
+    ["src/pages/ordenes/[id]/evidencias.astro", _page40],
+    ["src/pages/ordenes/[id].astro", _page41],
+    ["src/pages/ordenes/index.astro", _page42],
+    ["src/pages/pagos/cartera.astro", _page43],
+    ["src/pages/pagos/estado-cuenta/[clienteId].astro", _page44],
+    ["src/pages/pagos/registrar.astro", _page45],
+    ["src/pages/pagos/index.astro", _page46],
+    ["src/pages/productos/categorias.astro", _page47],
+    ["src/pages/productos/importar.astro", _page48],
+    ["src/pages/productos/kits/nuevo.astro", _page49],
+    ["src/pages/productos/kits.astro", _page50],
+    ["src/pages/productos/nuevo.astro", _page51],
+    ["src/pages/productos/[id]/editar.astro", _page52],
+    ["src/pages/productos/index.astro", _page53],
+    ["src/pages/reportes/clientes.astro", _page54],
+    ["src/pages/reportes/margenes.astro", _page55],
+    ["src/pages/reportes/productos.astro", _page56],
+    ["src/pages/reportes/ventas.astro", _page57],
+    ["src/pages/reportes/index.astro", _page58],
+    ["src/pages/test-tailwind.astro", _page59],
+    ["src/pages/index.astro", _page60]
 ]);
 
 const _manifest = Object.assign(manifest, {
@@ -139,7 +137,7 @@ const _manifest = Object.assign(manifest, {
     middleware: () => import('./_astro-internal_middleware.mjs')
 });
 const _args = {
-    "middlewareSecret": "1d8f0c99-3476-45cd-ac2a-5d6930cc85f2",
+    "middlewareSecret": "0725d060-fd1e-4470-9d06-cf239946a765",
     "skewProtection": false
 };
 const _exports = createExports(_manifest, _args);

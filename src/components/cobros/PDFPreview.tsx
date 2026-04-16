@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Download, RefreshCw } from "lucide-react";
-import { getCobro, type CuentaCobro } from "../../lib/services/cobroPagoLocalService";
-import { getEmpresa, listPlantillas } from "../../lib/services/configLocalService";
+import { getCobro, type CuentaCobro } from "../../lib/repositories/cobroPagoRepo";
+import { getEmpresa, listPlantillas } from "../../lib/repositories/configRepo";
 import { generateCuentaCobroPdfBytes } from "../../lib/pdf/cuentaCobroPDF";
 
 export default function PDFPreview({ cobroId }: { cobroId: string }) {
@@ -139,3 +139,4 @@ export default function PDFPreview({ cobroId }: { cobroId: string }) {
     </div>
   );
 }
+

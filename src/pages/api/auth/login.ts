@@ -1,96 +1,54 @@
-// src/pages/api/auth/login.ts
-import type { APIRoute } from "astro";
-import { createSessionCookie } from "../../../lib/auth/session";
-
-export const prerender = false;
+﻿import type { APIRoute } from "astro";
+import { authenticateUser, touchUserLogin } from "../../../lib/server/authUsers";
+import { SESSION_COOKIE_NAME, signSessionCookie } from "../../../lib/auth/session";
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    const contentType = request.headers.get("content-type") || "";
-
-    let email = "";
-    let password = "";
-
-    if (contentType.includes("application/json")) {
-      const body = await request.json().catch(() => null);
-      if (!body) {
-        return new Response(JSON.stringify({ ok: false, message: "Cuerpo de solicitud inválido" }), {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        });
-      }
-      email = (body?.email ?? "").toString().trim().toLowerCase();
-      password = (body?.password ?? "").toString().trim();
-    } else {
-      const formData = await request.formData().catch(() => null);
-      if (!formData) {
-        return new Response(JSON.stringify({ ok: false, message: "Cuerpo de solicitud inválido" }), {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-        });
-      }
-      email = (formData.get("email") ?? "").toString().trim().toLowerCase();
-      password = (formData.get("password") ?? "").toString().trim();
-    }
+    const body = await request.json().catch(() => ({}));
+    const email = String(body?.email ?? "").trim().toLowerCase();
+    const password = String(body?.password ?? "").trim();
 
     if (!email || !password) {
-      return new Response(JSON.stringify({ ok: false, message: "Datos incompletos" }), {
-        status: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
+      return new Response(
+        JSON.stringify({ ok: false, error: "Email y contraseña son requeridos" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    // ===== DEMO =====
-    if (!(email === "admin@empresa.com" && password === "admin123")) {
-      return new Response(JSON.stringify({ ok: false, message: "Credenciales inválidas" }), {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
+    const user = await authenticateUser(email, password);
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Credenciales inválidas" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    const token = createSessionCookie({
-      id: "admin-1",
-      name: "Admin",
-      email,
-      role: "admin",
-    });
+    const token = signSessionCookie(user);
 
-    cookies.set("session", token, {
+    cookies.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: "lax",
+      secure: import.meta.env.PROD,
       path: "/",
-      secure: import.meta.env.PROD, // en DEV => false
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    return new Response(JSON.stringify({ ok: true }), {
+    await touchUserLogin(user.id);
+
+    return new Response(JSON.stringify({ ok: true, user }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-        "Vary": "Cookie",
-      },
+      headers: { "Content-Type": "application/json" },
     });
-  } catch (error) {
-    console.error("Error en login:", error);
-    return new Response(JSON.stringify({ ok: false, message: "Error interno del servidor" }), {
-      status: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-      },
-    });
+  } catch (error: any) {
+    console.error("[api/auth/login] error:", error);
+
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: error?.message || "No fue posible iniciar sesión",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 };

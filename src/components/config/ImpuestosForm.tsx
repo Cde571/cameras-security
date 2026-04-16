@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { Plus, Save, Trash2 } from "lucide-react";
-import { deleteImpuesto, listImpuestos, upsertImpuesto, type Impuesto } from "../../lib/services/configLocalService";
+import { deleteImpuesto, listImpuestos, upsertImpuesto, type Impuesto } from "../../lib/repositories/configRepo";
 
 export default function ImpuestosForm() {
   const [list, setList] = useState<Impuesto[]>([]);
@@ -101,3 +101,4 @@ export default function ImpuestosForm() {
     </div>
   );
 }
+

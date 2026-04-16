@@ -1,10 +1,10 @@
 import { e as createComponent, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout } from '../../chunks/MainLayout_CmTjyfoz.mjs';
+import { $ as $$MainLayout } from '../../chunks/MainLayout_DCJG7FNs.mjs';
 import { jsxs, jsx } from 'react/jsx-runtime';
 import { useState, useEffect } from 'react';
 import { KeyRound, Plus, Trash2 } from 'lucide-react';
-import { i as listUsuarios, j as upsertUsuario, k as deleteUsuario } from '../../chunks/configLocalService_C83i_HSE.mjs';
+import { i as listUsuarios, j as upsertUsuario, k as deleteUsuario } from '../../chunks/configLocalService_DaV2BKqn.mjs';
 export { renderers } from '../../renderers.mjs';
 
 function UsuariosManager() {

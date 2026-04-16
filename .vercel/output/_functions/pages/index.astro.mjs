@@ -1,9 +1,12 @@
 import { e as createComponent, k as renderComponent, r as renderTemplate, m as maybeRenderHead } from '../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout } from '../chunks/MainLayout_CmTjyfoz.mjs';
+import { $ as $$MainLayout } from '../chunks/MainLayout_DCJG7FNs.mjs';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
-import 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, TrendingDown, AlertCircle, Wrench, FileText, DollarSign, ArrowRight, Plus, UserPlus, Package, Eye, Info, AlertTriangle, ChevronRight } from 'lucide-react';
+import { i as listCotizaciones } from '../chunks/cotizacionLocalService_CikZvbuZ.mjs';
+import { h as listOrdenes } from '../chunks/ordenLocalService_KxGhULNN.mjs';
+import { f as listPagos, l as listCobros } from '../chunks/cobroPagoLocalService_C_z-2DSE.mjs';
 export { renderers } from '../renderers.mjs';
 
 const iconMap = {
@@ -355,253 +358,277 @@ function AlertsList({ alerts }) {
   ] });
 }
 
-function toNumber(value) {
-  if (value === null || value === void 0) return 0;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-function toTrend(current, previous) {
-  if (!previous || previous <= 0) return void 0;
-  const diff = (current - previous) / previous * 100;
+function readDashboardCollections() {
   return {
-    value: Math.round(Math.abs(diff)),
-    direction: diff >= 0 ? "up" : "down"
+    cotizaciones: listCotizaciones(""),
+    ordenes: listOrdenes(""),
+    cobros: listCobros(""),
+    pagos: listPagos("")
   };
 }
-function normalizeRows(result) {
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result?.rows)) return result.rows;
-  return [];
+
+function toNumber(value) {
+  const n = Number(
+    typeof value === "string" ? value.replace(/\./g, "").replace(",", ".") : value
+  );
+  return Number.isFinite(n) ? n : 0;
 }
-async function safeQuery(fn, fallback, label) {
-  try {
-    return await fn();
-  } catch (error) {
-    console.error(`[dashboard] fallo en ${label}:`, error);
-    return fallback;
+function toDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+function sameMonth(value) {
+  const d = toDate(value);
+  if (!d) return false;
+  const now = /* @__PURE__ */ new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+function pickFirst(...values) {
+  for (const v of values) {
+    if (v !== void 0 && v !== null && String(v).trim() !== "") return v;
   }
+  return "";
 }
-async function getDashboardData() {
-  try {
-    const [{ sqlClient, testDbConnection }] = await Promise.all([
-      import('../chunks/client_g3SUwVKV.mjs')
-    ]);
-    await testDbConnection();
-    const totalMesRows = await safeQuery(
-      () => sqlClient`
-        SELECT COALESCE(SUM(total), 0) AS total
-        FROM cotizaciones
-        WHERE date_trunc('month', fecha::timestamp) = date_trunc('month', current_date::timestamp)
-      `,
-      [],
-      "totalCotizadoMes"
-    );
-    const totalMesAnteriorRows = await safeQuery(
-      () => sqlClient`
-        SELECT COALESCE(SUM(total), 0) AS total
-        FROM cotizaciones
-        WHERE date_trunc('month', fecha::timestamp) = date_trunc('month', (current_date - interval '1 month')::timestamp)
-      `,
-      [],
-      "totalCotizadoMesAnterior"
-    );
-    const pendientesRows = await safeQuery(
-      () => sqlClient`
-        SELECT COUNT(*) AS total
-        FROM cotizaciones
-        WHERE status IN ('borrador', 'enviada', 'pendiente')
-      `,
-      [],
-      "cotizacionesPendientes"
-    );
-    const ordenesRows = await safeQuery(
-      () => sqlClient`
-        SELECT COUNT(*) AS total
-        FROM ordenes
-        WHERE estado IN ('pendiente', 'en_progreso', 'en_revision')
-      `,
-      [],
-      "ordenesEnCurso"
-    );
-    const carteraRows = await safeQuery(
-      () => sqlClient`
-        WITH pagos_por_cobro AS (
-          SELECT
-            cuenta_cobro_id,
-            COALESCE(SUM(valor), 0) AS pagado
-          FROM pagos
-          GROUP BY cuenta_cobro_id
-        )
-        SELECT COALESCE(SUM(GREATEST(c.total - COALESCE(pp.pagado, 0), 0)), 0) AS total
-        FROM cuentas_cobro c
-        LEFT JOIN pagos_por_cobro pp ON pp.cuenta_cobro_id = c.id
-        WHERE c.estado IN ('pendiente', 'vencido', 'enviado')
-      `,
-      [],
-      "carteraVencida"
-    );
-    const docsRows = await safeQuery(
-      () => sqlClient`
-        SELECT *
-        FROM (
-          SELECT
-            c.id::text AS id,
-            'cotizacion'::text AS type,
-            c.numero AS number,
-            COALESCE(cl.nombre, 'Sin cliente') AS client,
-            COALESCE(c.total, 0) AS amount,
-            c.fecha::text AS date,
-            c.status AS status,
-            c.created_at AS sort_at
-          FROM cotizaciones c
-          LEFT JOIN clientes cl ON cl.id = c.cliente_id
-
-          UNION ALL
-
-          SELECT
-            cc.id::text AS id,
-            'cobro'::text AS type,
-            cc.numero AS number,
-            COALESCE(cl.nombre, 'Sin cliente') AS client,
-            COALESCE(cc.total, 0) AS amount,
-            cc.fecha::text AS date,
-            cc.estado AS status,
-            cc.created_at AS sort_at
-          FROM cuentas_cobro cc
-          LEFT JOIN clientes cl ON cl.id = cc.cliente_id
-
-          UNION ALL
-
-          SELECT
-            o.id::text AS id,
-            'orden'::text AS type,
-            o.numero AS number,
-            COALESCE(cl.nombre, 'Sin cliente') AS client,
-            0::numeric AS amount,
-            COALESCE(o.fecha::text, o.created_at::date::text) AS date,
-            o.estado AS status,
-            o.created_at AS sort_at
-          FROM ordenes o
-          LEFT JOIN clientes cl ON cl.id = o.cliente_id
-        ) docs
-        ORDER BY sort_at DESC
-        LIMIT 8
-      `,
-      [],
-      "recentDocs"
-    );
-    const quoteAlertRows = await safeQuery(
-      () => sqlClient`
-        SELECT id::text AS id, numero
-        FROM cotizaciones
-        WHERE status IN ('borrador', 'enviada', 'pendiente')
-        ORDER BY fecha ASC
-        LIMIT 1
-      `,
-      [],
-      "quoteAlert"
-    );
-    const overdueAlertRows = await safeQuery(
-      () => sqlClient`
-        WITH pagos_por_cobro AS (
-          SELECT
-            cuenta_cobro_id,
-            COALESCE(SUM(valor), 0) AS pagado
-          FROM pagos
-          GROUP BY cuenta_cobro_id
-        )
-        SELECT COUNT(*) AS total
-        FROM cuentas_cobro c
-        LEFT JOIN pagos_por_cobro pp ON pp.cuenta_cobro_id = c.id
-        WHERE GREATEST(c.total - COALESCE(pp.pagado, 0), 0) > 0
-      `,
-      [],
-      "overdueAlert"
-    );
-    const orderAlertRows = await safeQuery(
-      () => sqlClient`
-        SELECT id::text AS id, numero
-        FROM ordenes
-        WHERE estado = 'finalizada'
-        ORDER BY updated_at DESC
-        LIMIT 1
-      `,
-      [],
-      "orderAlert"
-    );
-    const totalCotizadoMes = toNumber(normalizeRows(totalMesRows)[0]?.total);
-    const totalCotizadoMesAnterior = toNumber(normalizeRows(totalMesAnteriorRows)[0]?.total);
-    const recentDocs = normalizeRows(docsRows).map((row) => ({
-      id: String(row.id),
-      type: row.type,
-      number: row.number,
-      client: row.client,
-      amount: toNumber(row.amount),
-      date: row.date,
-      status: row.status
-    }));
-    const alerts = [];
-    const quoteRow = normalizeRows(quoteAlertRows)[0];
-    const overdueRow = normalizeRows(overdueAlertRows)[0];
-    const orderRow = normalizeRows(orderAlertRows)[0];
-    if (quoteRow?.id) {
-      alerts.push({
-        id: 1,
-        type: "warning",
-        message: `Cotización ${quoteRow.numero} requiere seguimiento`,
-        action: `/cotizaciones/${quoteRow.id}`
-      });
+function clientNameOf(item) {
+  return pickFirst(
+    item?.cliente?.nombre,
+    item?.clienteNombre,
+    item?.client?.nombre,
+    item?.clientName,
+    item?.nombreCliente,
+    "Sin cliente"
+  );
+}
+function numberOf(item, prefix) {
+  return String(
+    pickFirst(item.numero, item.codigo, `${prefix}-${String(item.id || "").slice(0, 8)}`)
+  );
+}
+function statusOf(item) {
+  return String(pickFirst(item.status, item.estado, "pendiente")).toLowerCase();
+}
+function dateOf(item) {
+  return String(
+    pickFirst(
+      item.fecha,
+      item.fechaEmision,
+      item.fechaProgramada,
+      item.createdAt,
+      item.updatedAt,
+      (/* @__PURE__ */ new Date()).toISOString()
+    )
+  );
+}
+function totalOf(item) {
+  return toNumber(
+    pickFirst(
+      item.total,
+      item.totalGeneral,
+      item.montoTotal,
+      item.valorTotal,
+      item.subtotalFinal
+    )
+  );
+}
+function DashboardLiveData() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const refresh = () => setTick((v) => v + 1);
+    const interval = window.setInterval(refresh, 1200);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+  const data = useMemo(() => {
+    const { cotizaciones, ordenes, cobros, pagos } = readDashboardCollections();
+    const totalCotizadoMes = cotizaciones.filter((c) => sameMonth(dateOf(c))).reduce((sum, c) => sum + totalOf(c), 0);
+    const cotizacionesPendientes = cotizaciones.filter(
+      (c) => ["borrador", "enviada", "pendiente"].includes(statusOf(c))
+    ).length;
+    const ordenesEnCurso = ordenes.filter(
+      (o) => ["pendiente", "en_progreso", "en progreso", "en_revision", "en revisión"].includes(statusOf(o))
+    ).length;
+    const pagosPorCobro = /* @__PURE__ */ new Map();
+    for (const pago of pagos) {
+      const cobroId = String(pickFirst(pago.cuentaCobroId, pago.cobroId, pago.cuenta_cobro_id, ""));
+      if (!cobroId) continue;
+      pagosPorCobro.set(
+        cobroId,
+        (pagosPorCobro.get(cobroId) || 0) + toNumber(pickFirst(pago.valor, pago.monto, 0))
+      );
     }
-    if (toNumber(overdueRow?.total) > 0) {
+    const carteraPendiente = cobros.reduce((sum, cobro) => {
+      const id = String(pickFirst(cobro.id, ""));
+      const total = totalOf(cobro);
+      const pagado = pagosPorCobro.get(id) || 0;
+      return sum + Math.max(total - pagado, 0);
+    }, 0);
+    const recentDocs = [
+      ...cotizaciones.map((c) => ({
+        id: String(pickFirst(c.id, c.numero, crypto.randomUUID?.() || Math.random())),
+        type: "cotizacion",
+        number: numberOf(c, "COT"),
+        client: clientNameOf(c),
+        amount: totalOf(c),
+        date: dateOf(c),
+        status: statusOf(c)
+      })),
+      ...cobros.map((c) => ({
+        id: String(pickFirst(c.id, c.numero, crypto.randomUUID?.() || Math.random())),
+        type: "cobro",
+        number: numberOf(c, "CC"),
+        client: clientNameOf(c),
+        amount: totalOf(c),
+        date: dateOf(c),
+        status: statusOf(c)
+      })),
+      ...ordenes.map((o) => ({
+        id: String(pickFirst(o.id, o.numero, crypto.randomUUID?.() || Math.random())),
+        type: "orden",
+        number: numberOf(o, "OT"),
+        client: clientNameOf(o),
+        amount: 0,
+        date: dateOf(o),
+        status: statusOf(o)
+      }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8);
+    const alerts = [];
+    let alertId = 1;
+    const tomorrow = /* @__PURE__ */ new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    for (const c of cotizaciones) {
+      const base = toDate(dateOf(c));
+      if (!base) continue;
+      const vigencia = toNumber(pickFirst(c.vigenciaDias, c.vigencia_dias, 30));
+      const vence = new Date(base);
+      vence.setDate(vence.getDate() + vigencia);
+      if (vence.getFullYear() === tomorrow.getFullYear() && vence.getMonth() === tomorrow.getMonth() && vence.getDate() === tomorrow.getDate() && ["borrador", "enviada", "pendiente"].includes(statusOf(c))) {
+        alerts.push({
+          id: alertId++,
+          type: "warning",
+          message: `Cotización ${numberOf(c, "COT")} vence mañana`,
+          action: `/cotizaciones/${String(c.id)}`
+        });
+        break;
+      }
+    }
+    const cobrosPendientes = cobros.filter((c) => {
+      const id = String(pickFirst(c.id, ""));
+      const total = totalOf(c);
+      const pagado = pagosPorCobro.get(id) || 0;
+      return total - pagado > 0;
+    }).length;
+    if (cobrosPendientes > 0) {
       alerts.push({
-        id: 2,
+        id: alertId++,
         type: "danger",
-        message: `${toNumber(overdueRow.total)} cuenta(s) de cobro con saldo pendiente`,
+        message: `${cobrosPendientes} cuenta(s) con saldo pendiente`,
         action: "/pagos/cartera"
       });
     }
-    if (orderRow?.id) {
+    const ordenFinalizada = ordenes.find(
+      (o) => ["finalizada", "terminada", "completada"].includes(statusOf(o))
+    );
+    if (ordenFinalizada) {
       alerts.push({
-        id: 3,
+        id: alertId++,
         type: "info",
-        message: `Orden ${orderRow.numero} finalizada`,
-        action: `/ordenes/${orderRow.id}`
+        message: `Orden ${numberOf(ordenFinalizada, "OT")} finalizada`,
+        action: `/ordenes/${String(ordenFinalizada.id)}`
       });
     }
     return {
-      dbConnected: true,
-      error: null,
-      kpis: {
-        totalCotizadoMes,
-        cotizacionesPendientes: toNumber(normalizeRows(pendientesRows)[0]?.total),
-        ordenesEnCurso: toNumber(normalizeRows(ordenesRows)[0]?.total),
-        carteraVencida: toNumber(normalizeRows(carteraRows)[0]?.total),
-        trendTotalCotizadoMes: toTrend(totalCotizadoMes, totalCotizadoMesAnterior)
-      },
+      totalCotizadoMes,
+      cotizacionesPendientes,
+      ordenesEnCurso,
+      carteraPendiente,
       recentDocs,
       alerts
     };
-  } catch (error) {
-    console.error("[dashboard] conexión principal falló:", error);
-    return {
-      dbConnected: false,
-      error: error?.message || "No fue posible conectar con PostgreSQL",
-      kpis: {
-        totalCotizadoMes: 0,
-        cotizacionesPendientes: 0,
-        ordenesEnCurso: 0,
-        carteraVencida: 0
-      },
-      recentDocs: [],
-      alerts: []
-    };
-  }
+  }, [tick]);
+  const hasCriticalAlerts = data.alerts.some((a) => a.type === "danger");
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsxs("section", { className: "mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4", children: [
+      /* @__PURE__ */ jsx(
+        KPICard,
+        {
+          title: "Cotizado este mes",
+          value: data.totalCotizadoMes,
+          type: "currency",
+          icon: "dollar-sign",
+          color: "blue",
+          link: "/cotizaciones"
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        KPICard,
+        {
+          title: "Cotizaciones pendientes",
+          value: data.cotizacionesPendientes,
+          type: "number",
+          icon: "file-text",
+          color: "orange",
+          link: "/cotizaciones?status=pendiente"
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        KPICard,
+        {
+          title: "Órdenes en curso",
+          value: data.ordenesEnCurso,
+          type: "number",
+          icon: "wrench",
+          color: "green",
+          link: "/ordenes?status=en_progreso"
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        KPICard,
+        {
+          title: "Cartera pendiente",
+          value: data.carteraPendiente,
+          type: "currency",
+          icon: "alert-circle",
+          color: "red",
+          link: "/pagos/cartera"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxs("section", { className: "mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3", children: [
+      /* @__PURE__ */ jsx("div", { className: "lg:col-span-2", children: /* @__PURE__ */ jsx(QuickActions, {}) }),
+      /* @__PURE__ */ jsxs("div", { className: "space-y-4", children: [
+        hasCriticalAlerts ? /* @__PURE__ */ jsx("div", { className: "rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700", children: "Hay alertas críticas que requieren revisión inmediata." }) : /* @__PURE__ */ jsx("div", { className: "rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700", children: "No hay alertas críticas registradas en este momento." }),
+        /* @__PURE__ */ jsx(AlertsList, { alerts: data.alerts })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("section", { className: "rounded-xl border border-gray-200 bg-white shadow-md", children: [
+      /* @__PURE__ */ jsx("div", { className: "border-b border-gray-200 px-6 py-4", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-4", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("h2", { className: "text-xl font-bold text-gray-800", children: "Documentos recientes" }),
+          /* @__PURE__ */ jsx("p", { className: "mt-1 text-sm text-gray-500", children: "Datos leídos desde la capa unificada del sistema." })
+        ] }),
+        /* @__PURE__ */ jsx(
+          "a",
+          {
+            href: "/cotizaciones",
+            className: "flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700",
+            children: "Ver todos"
+          }
+        )
+      ] }) }),
+      /* @__PURE__ */ jsx(RecentDocuments, { documents: data.recentDocs })
+    ] })
+  ] });
 }
 
-const $$Index = createComponent(async ($$result, $$props, $$slots) => {
+const $$Index = createComponent(($$result, $$props, $$slots) => {
   const pageTitle = "Dashboard - Sistema de Cotizaciones";
   const pageDescription = "Panel principal del sistema de gesti\xF3n de cotizaciones y ventas";
-  const dashboardData = await getDashboardData();
   const now = /* @__PURE__ */ new Date();
   const todayLong = new Intl.DateTimeFormat("es-CO", {
     weekday: "long",
@@ -612,17 +639,7 @@ const $$Index = createComponent(async ($$result, $$props, $$slots) => {
   const currentMonth = new Intl.DateTimeFormat("es-CO", {
     month: "long"
   }).format(now);
-  const hasCriticalAlerts = dashboardData.alerts.some((a) => a.type === "danger");
-  return renderTemplate`${renderComponent($$result, "MainLayout", $$MainLayout, { "title": pageTitle, "description": pageDescription }, { "default": async ($$result2) => renderTemplate` ${maybeRenderHead()}<section class="mb-8 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 p-8 shadow-lg"> <div class="flex items-center justify-between gap-6"> <div class="text-white"> <h1 class="mb-2 text-3xl font-bold">Bienvenido de nuevo</h1> <p class="text-lg text-blue-100">Hoy es ${todayLong}</p> </div> <div class="hidden md:block"> <div class="rounded-lg bg-white/20 p-4 text-center text-white backdrop-blur-sm"> <p class="mb-1 text-sm text-blue-100">Mes actual</p> <p class="text-3xl font-bold">${currentMonth}</p> </div> </div> </div> </section> ${!dashboardData.dbConnected && renderTemplate`<section class="mb-6 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-No se pudo conectar el dashboard a PostgreSQL: ${dashboardData.error} </section>`}<section class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"> ${renderComponent($$result2, "KPICard", KPICard, { "title": "Cotizado este mes", "value": dashboardData.kpis.totalCotizadoMes, "type": "currency", "icon": "dollar-sign", "trend": dashboardData.kpis.trendTotalCotizadoMes, "color": "blue", "link": "/cotizaciones" })} ${renderComponent($$result2, "KPICard", KPICard, { "title": "Cotizaciones pendientes", "value": dashboardData.kpis.cotizacionesPendientes, "type": "number", "icon": "file-text", "color": "orange", "link": "/cotizaciones?status=pendiente" })} ${renderComponent($$result2, "KPICard", KPICard, { "title": "\xD3rdenes en curso", "value": dashboardData.kpis.ordenesEnCurso, "type": "number", "icon": "wrench", "color": "green", "link": "/ordenes?status=en_progreso" })} ${renderComponent($$result2, "KPICard", KPICard, { "title": "Cartera pendiente", "value": dashboardData.kpis.carteraVencida, "type": "currency", "icon": "alert-circle", "color": "red", "link": "/pagos/cartera" })} </section> <section class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3"> <div class="lg:col-span-2"> ${renderComponent($$result2, "QuickActions", QuickActions, {})} </div> <div class="space-y-4"> ${hasCriticalAlerts ? renderTemplate`<div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-Hay alertas críticas que requieren revisión inmediata.
-</div>` : renderTemplate`<div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-No hay alertas críticas registradas en este momento.
-</div>`} ${renderComponent($$result2, "AlertsList", AlertsList, { "alerts": dashboardData.alerts })} </div> </section> <section class="rounded-xl border border-gray-200 bg-white shadow-md"> <div class="border-b border-gray-200 px-6 py-4"> <div class="flex items-center justify-between gap-4"> <div> <h2 class="text-xl font-bold text-gray-800">Documentos recientes</h2> <p class="mt-1 text-sm text-gray-500">
-Últimos movimientos leídos desde PostgreSQL.
-</p> </div> <a href="/cotizaciones" class="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700">
-Ver todos
-<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path> </svg> </a> </div> </div> ${renderComponent($$result2, "RecentDocuments", RecentDocuments, { "documents": dashboardData.recentDocs })} </section> ` })}`;
+  return renderTemplate`${renderComponent($$result, "MainLayout", $$MainLayout, { "title": pageTitle, "description": pageDescription }, { "default": ($$result2) => renderTemplate` ${maybeRenderHead()}<section class="mb-8 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 p-8 shadow-lg"> <div class="flex items-center justify-between gap-6"> <div class="text-white"> <h1 class="mb-2 text-3xl font-bold">Bienvenido de nuevo</h1> <p class="text-lg text-blue-100">Hoy es ${todayLong}</p> </div> <div class="hidden md:block"> <div class="rounded-lg bg-white/20 p-4 text-center text-white backdrop-blur-sm"> <p class="mb-1 text-sm text-blue-100">Mes actual</p> <p class="text-3xl font-bold">${currentMonth}</p> </div> </div> </div> </section> ${renderComponent($$result2, "DashboardLiveData", DashboardLiveData, { "client:load": true, "client:component-hydration": "load", "client:component-path": "C:/Users/caco2/Documents/Projects/technological-cameras/src/components/dashboard/DashboardLiveData", "client:component-export": "default" })} ` })}`;
 }, "C:/Users/caco2/Documents/Projects/technological-cameras/src/pages/index.astro", void 0);
 
 const $$file = "C:/Users/caco2/Documents/Projects/technological-cameras/src/pages/index.astro";

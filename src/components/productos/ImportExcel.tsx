@@ -1,6 +1,6 @@
 ﻿import React, { useState } from "react";
 import { Upload, ArrowLeft } from "lucide-react";
-import { createProducto, listProductos, updateProducto } from "../../lib/services/productoLocalService";
+import { createProducto, listProductos, updateProducto } from "../../lib/repositories/productoRepo";
 
 function num(v: any) {
   const n = Number(String(v).replace(",", "."));
@@ -159,4 +159,5 @@ export default function ImportExcel() {
     </div>
   );
 }
+
 

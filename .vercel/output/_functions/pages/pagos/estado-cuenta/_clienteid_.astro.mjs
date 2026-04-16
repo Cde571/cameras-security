@@ -1,11 +1,11 @@
 import { e as createComponent, f as createAstro, k as renderComponent, r as renderTemplate } from '../../../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout } from '../../../chunks/MainLayout_CmTjyfoz.mjs';
+import { $ as $$MainLayout } from '../../../chunks/MainLayout_DCJG7FNs.mjs';
 import { jsxs, jsx } from 'react/jsx-runtime';
 import { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { g as getCliente } from '../../../chunks/clienteLocalService_BAQfU60Z.mjs';
-import { b as getEstadoCuenta } from '../../../chunks/cobroPagoLocalService_BSn6kzk1.mjs';
+import { b as getEstadoCuenta } from '../../../chunks/cobroPagoLocalService_C_z-2DSE.mjs';
 export { renderers } from '../../../renderers.mjs';
 
 function EstadoCuenta({ clienteId }) {

@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Upload, Trash2, FileText, Image as ImgIcon, Video } from "lucide-react";
-import { getOrden, updateOrden, type Evidencia } from "../../lib/services/ordenLocalService";
+import { getOrden, updateOrden, type Evidencia } from "../../lib/repositories/ordenRepo";
 
 function uid() {
   return (globalThis.crypto?.randomUUID?.() ?? `ev_${Date.now()}_${Math.random().toString(16).slice(2)}`);
@@ -180,3 +180,4 @@ export default function EvidenciasUpload({ ordenId }: { ordenId: string }) {
     </div>
   );
 }
+

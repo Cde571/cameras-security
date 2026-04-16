@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { getReporteDashboard } from "../../lib/services/reporteLocalService";
+import { getReporteDashboard } from "../../lib/repositories/reporteRepo";
 import TopProductos from "./TopProductos";
 
 export default function ReporteProductos() {
@@ -14,3 +14,4 @@ export default function ReporteProductos() {
     </div>
   );
 }
+

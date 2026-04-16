@@ -1,6 +1,6 @@
 ﻿import React, { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { listClientes, type Cliente } from "../../lib/services/clienteLocalService";
+import { listClientes, type Cliente } from "../../lib/repositories/clienteRepo";
 
 type Props = {
   value?: string;
@@ -53,3 +53,4 @@ export default function ClienteSelector({ value, onChange }: Props) {
     </div>
   );
 }
+

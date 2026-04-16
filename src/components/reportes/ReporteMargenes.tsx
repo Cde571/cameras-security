@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { getReporteDashboard } from "../../lib/services/reporteLocalService";
+import { getReporteDashboard } from "../../lib/repositories/reporteRepo";
 import MargenChart from "./MargenChart";
 
 export default function ReporteMargenes() {
@@ -14,3 +14,4 @@ export default function ReporteMargenes() {
     </div>
   );
 }
+

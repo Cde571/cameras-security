@@ -1,6 +1,7 @@
-﻿import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { Pencil, History, FileText, DollarSign, Wrench } from "lucide-react";
-import { getCliente, type Cliente } from "../../lib/services/clienteLocalService";
+import { getCliente, type Cliente } from "../../lib/flow/data";
+import { buildFlowUrl } from "../../lib/flow/context";
 
 type Props = { clienteId: string };
 
@@ -10,6 +11,12 @@ export default function ClienteCard({ clienteId }: Props) {
   useEffect(() => {
     setCliente(getCliente(clienteId));
   }, [clienteId]);
+
+  const links = useMemo(() => ({
+    cotizacion: buildFlowUrl("/cotizaciones/nueva", { clienteId, from: "cliente" }),
+    cobro: buildFlowUrl("/cobros/nueva", { clienteId, from: "cliente" }),
+    orden: buildFlowUrl("/ordenes/nueva", { clienteId, from: "cliente" }),
+  }), [clienteId]);
 
   if (!cliente) {
     return (
@@ -48,11 +55,11 @@ export default function ClienteCard({ clienteId }: Props) {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <section className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <section className="space-y-3 rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
           <h2 className="font-semibold text-gray-900">Información</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
             <div>
               <p className="text-xs font-semibold text-gray-500">Teléfono</p>
               <p className="text-gray-800">{cliente.telefono || "—"}</p>
@@ -74,35 +81,39 @@ export default function ClienteCard({ clienteId }: Props) {
           {cliente.notas ? (
             <div className="pt-2">
               <p className="text-xs font-semibold text-gray-500">Notas</p>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{cliente.notas}</p>
+              <p className="whitespace-pre-wrap text-sm text-gray-700">{cliente.notas}</p>
             </div>
           ) : null}
         </section>
 
-        <aside className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-3">
+        <aside className="space-y-3 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="font-semibold text-gray-900">Acciones</h2>
 
           <a
-            href="/cotizaciones/nueva"
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 text-sm"
+            href={links.cotizacion}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50"
           >
             <FileText className="h-4 w-4 text-gray-700" />
             Nueva cotización
           </a>
           <a
-            href="/cobros/nueva"
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 text-sm"
+            href={links.cobro}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50"
           >
             <DollarSign className="h-4 w-4 text-gray-700" />
             Nueva cuenta de cobro
           </a>
           <a
-            href="/ordenes/nueva"
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 text-sm"
+            href={links.orden}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50"
           >
             <Wrench className="h-4 w-4 text-gray-700" />
             Nueva orden de trabajo
           </a>
+
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            Estas acciones ya salen con el cliente preseleccionado.
+          </div>
         </aside>
       </div>
     </div>

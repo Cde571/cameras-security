@@ -1,14 +1,11 @@
-export const prerender = false; // 👈 IMPORTANTE: Añade esto
+﻿import type { APIRoute } from "astro";
+import { SESSION_COOKIE_NAME } from "../../../lib/auth/session";
 
-import type { APIRoute } from "astro";
+export const POST: APIRoute = async ({ cookies }) => {
+  cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
 
-export const POST: APIRoute = async ({ cookies, redirect }) => {
-  cookies.delete("session", { path: "/" });
-  return redirect("/auth/login", 302);
-};
-
-// Soporte para GET (enlaces directos)
-export const GET: APIRoute = async ({ cookies, redirect }) => {
-  cookies.delete("session", { path: "/" });
-  return redirect("/auth/login", 302);
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 };

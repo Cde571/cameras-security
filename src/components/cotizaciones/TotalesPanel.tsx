@@ -1,5 +1,5 @@
 ﻿import React, { useMemo } from "react";
-import { calcTotales, type CotizacionItem } from "../../lib/services/cotizacionLocalService";
+import { calcTotales, type CotizacionItem } from "../../lib/repositories/cotizacionRepo";
 
 type Props = { items: CotizacionItem[] };
 
@@ -31,3 +31,4 @@ export default function TotalesPanel({ items }: Props) {
     </div>
   );
 }
+

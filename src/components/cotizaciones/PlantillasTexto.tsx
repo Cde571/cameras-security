@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Save, Trash2, Search } from "lucide-react";
-import { createPlantilla, deletePlantilla, listPlantillas, updatePlantilla } from "../../lib/services/cotizacionLocalService";
+import { createPlantilla, deletePlantilla, listPlantillas, updatePlantilla } from "../../lib/repositories/cotizacionRepo";
 
 type Edit = { id: string; nombre: string; cuerpo: string; activo: boolean };
 
@@ -139,3 +139,4 @@ export default function PlantillasTexto() {
     </div>
   );
 }
+

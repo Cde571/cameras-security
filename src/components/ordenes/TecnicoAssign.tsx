@@ -1,5 +1,5 @@
 ﻿import React, { useMemo } from "react";
-import type { Tecnico } from "../../lib/services/ordenLocalService";
+import type { Tecnico } from "../../lib/repositories/ordenRepo";
 
 type Props = {
   value?: Tecnico | null;
@@ -42,3 +42,4 @@ export default function TecnicoAssign({ value, onChange }: Props) {
     </div>
   );
 }
+

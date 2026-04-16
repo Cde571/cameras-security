@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Eye, Trash2 } from "lucide-react";
-import { deleteCobro, listCobros } from "../../lib/services/cobroPagoLocalService";
+import { deleteCobro, listCobros } from "../../lib/repositories/cobroPagoRepo";
 
 export default function CuentasList() {
   const [q, setQ] = useState("");
@@ -111,3 +111,4 @@ export default function CuentasList() {
     </div>
   );
 }
+

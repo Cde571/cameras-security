@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Eye, Pencil, Trash2, FileText, GitBranch } from "lucide-react";
-import { deleteCotizacion, listCotizaciones } from "../../lib/services/cotizacionLocalService";
+import { deleteCotizacion, listCotizaciones } from "../../lib/repositories/cotizacionRepo";
 
 function money(n: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n || 0);
@@ -134,3 +134,4 @@ export default function CotizacionesList() {
     </div>
   );
 }
+

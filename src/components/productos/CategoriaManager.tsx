@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { addCategoria, addMarca, getProductoMeta, removeCategoria, removeMarca } from "../../lib/services/productoLocalService";
+import { addCategoria, addMarca, getProductoMeta, removeCategoria, removeMarca } from "../../lib/repositories/productoRepo";
 
 export default function CategoriaManager() {
   const [meta, setMeta] = useState(getProductoMeta());
@@ -97,3 +97,4 @@ export default function CategoriaManager() {
     </div>
   );
 }
+

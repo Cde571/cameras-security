@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Pencil, Trash2, Image } from "lucide-react";
-import { deleteOrden, getOrden, updateOrden, type Orden } from "../../lib/services/ordenLocalService";
+import { ArrowLeft, Pencil, Trash2, Image, ClipboardCheck, DollarSign } from "lucide-react";
+import { deleteOrden, getOrden, updateOrden, type Orden } from "../../lib/flow/data";
+import { buildFlowUrl } from "../../lib/flow/context";
 
 export default function OrdenDetail({ ordenId }: { ordenId: string }) {
   const [o, setO] = useState<Orden | null>(null);
@@ -12,9 +13,17 @@ export default function OrdenDetail({ ordenId }: { ordenId: string }) {
   const progress = useMemo(() => {
     if (!o) return 0;
     const total = o.checklist?.length || 0;
-    const done = (o.checklist || []).filter(c => c.done).length;
+    const done = (o.checklist || []).filter((c) => c.done).length;
     if (total === 0) return 0;
     return Math.round((done / total) * 100);
+  }, [o]);
+
+  const links = useMemo(() => {
+    if (!o) return { acta: "/actas/nueva", cobro: "/cobros/nueva" };
+    return {
+      acta: buildFlowUrl("/actas/nueva", { clienteId: o.clienteId, ordenId: o.id, from: "orden" }),
+      cobro: buildFlowUrl("/cobros/nueva", { clienteId: o.clienteId, ordenId: o.id, from: "orden" }),
+    };
   }, [o]);
 
   const del = () => {
@@ -49,12 +58,18 @@ export default function OrdenDetail({ ordenId }: { ordenId: string }) {
           <p className="text-sm text-gray-500">{o.status} • Creación {o.fechaCreacion} • Programada {o.fechaProgramada || "—"}</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <a href="/ordenes" className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
             <ArrowLeft className="h-4 w-4" /> Volver
           </a>
           <a href={`/ordenes/${o.id}/editar`} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
             <Pencil className="h-4 w-4" /> Editar
+          </a>
+          <a href={links.acta} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700">
+            <ClipboardCheck className="h-4 w-4" /> Generar acta
+          </a>
+          <a href={links.cobro} className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-800 hover:bg-emerald-100">
+            <DollarSign className="h-4 w-4" /> Crear cobro
           </a>
           <a href={`/ordenes/${o.id}/evidencias`} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
             <Image className="h-4 w-4" /> Evidencias
@@ -65,8 +80,8 @@ export default function OrdenDetail({ ordenId }: { ordenId: string }) {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <section className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <section className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
           <div>
             <p className="text-xs font-semibold text-gray-500">Cliente</p>
             <p className="font-semibold text-gray-900">{o.cliente?.nombre}</p>
@@ -102,7 +117,7 @@ export default function OrdenDetail({ ordenId }: { ordenId: string }) {
           ) : null}
         </section>
 
-        <aside className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-3">
+        <aside className="space-y-3 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h3 className="font-semibold text-gray-900">Checklist</h3>
 
           <div className="w-full rounded-lg bg-gray-50 p-3">
@@ -118,23 +133,29 @@ export default function OrdenDetail({ ordenId }: { ordenId: string }) {
           <div className="space-y-2">
             {(o.checklist || []).slice(0, 6).map((c, idx) => (
               <button key={c.id} type="button" onClick={() => toggleQuick(idx)}
-                className={`w-full text-left rounded-lg border px-3 py-2 text-sm ${
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
                   c.done ? "border-green-200 bg-green-50" : "border-gray-200 bg-white hover:bg-gray-50"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className={`${c.done ? "text-green-800 font-semibold" : "text-gray-800"}`}>{c.label}</span>
+                  <span className={`${c.done ? "font-semibold text-green-800" : "text-gray-800"}`}>{c.label}</span>
                   <span className="text-xs text-gray-500">{c.done ? "Hecho" : "Pendiente"}</span>
                 </div>
               </button>
             ))}
           </div>
 
-          <a href={`/ordenes/${o.id}/editar`} className="block rounded-lg border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 text-sm">
+          <a href={`/ordenes/${o.id}/editar`} className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">
             Editar checklist completo
           </a>
 
-          <div className="pt-2 border-t border-gray-200">
+          <div className="border-t border-gray-200 pt-3 space-y-2">
+            <a href={links.acta} className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">
+              Generar acta desde esta orden
+            </a>
+            <a href={links.cobro} className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">
+              Crear cobro desde esta orden
+            </a>
             <p className="text-xs text-gray-500">Evidencias: {o.evidencias?.length || 0}</p>
           </div>
         </aside>

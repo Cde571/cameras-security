@@ -1,6 +1,6 @@
 ﻿import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import type { CuentaCobro } from "../services/cobroPagoLocalService";
-import type { EmpresaConfig } from "../services/configLocalService";
+import type { CuentaCobro } from "../repositories/cobroPagoRepo";
+import type { EmpresaConfig } from "../repositories/configRepo";
 
 function moneyCOP(n: number) {
   return new Intl.NumberFormat("es-CO", {
@@ -463,3 +463,4 @@ export async function buildCuentaCobroPDF(
 ): Promise<Uint8Array> {
   return generateCuentaCobroPdfBytes(cobro, options);
 }
+

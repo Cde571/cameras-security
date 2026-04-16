@@ -1,9 +1,27 @@
----
-import MainLayout from "./MainLayout.astro";
+﻿---
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Acceso | Sistema de Cotizaciones",
+  description = "Ingreso seguro al sistema de cotizaciones",
+} = Astro.props as Props;
 ---
 
-<MainLayout title="Acceso | Sistema de Cotizaciones">
-  <div class="min-h-screen flex items-center justify-center bg-slate-100">
-    <slot />
-  </div>
-</MainLayout>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+
+  <body class="min-h-screen bg-slate-100 text-gray-900 antialiased">
+    <main class="min-h-screen flex items-center justify-center p-6">
+      <slot />
+    </main>
+  </body>
+</html>

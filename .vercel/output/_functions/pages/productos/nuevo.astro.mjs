@@ -1,6 +1,6 @@
 import { e as createComponent, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout } from '../../chunks/MainLayout_CmTjyfoz.mjs';
+import { $ as $$MainLayout } from '../../chunks/MainLayout_DCJG7FNs.mjs';
 import { P as ProductoForm } from '../../chunks/ProductoForm_D-ZRg1NJ.mjs';
 export { renderers } from '../../renderers.mjs';
 

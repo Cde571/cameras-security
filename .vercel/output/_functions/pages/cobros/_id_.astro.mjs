@@ -1,10 +1,10 @@
 import { e as createComponent, f as createAstro, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout } from '../../chunks/MainLayout_CmTjyfoz.mjs';
+import { $ as $$MainLayout } from '../../chunks/MainLayout_DCJG7FNs.mjs';
 import { jsxs, jsx } from 'react/jsx-runtime';
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, FileText, DollarSign } from 'lucide-react';
-import { g as getCobro } from '../../chunks/cobroPagoLocalService_BSn6kzk1.mjs';
+import { g as getCobro } from '../../chunks/cobroPagoLocalService_C_z-2DSE.mjs';
 export { renderers } from '../../renderers.mjs';
 
 function CobroDetail({ cobroId }) {

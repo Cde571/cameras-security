@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
-import { getCotizacion, type Cotizacion } from "../../lib/services/cotizacionLocalService";
+import { getCotizacion, type Cotizacion } from "../../lib/repositories/cotizacionRepo";
 import PDFPreview from "./PDFPreview";
 
 export default function CotizacionPDF({ cotizacionId }: { cotizacionId: string }) {
@@ -23,3 +23,4 @@ export default function CotizacionPDF({ cotizacionId }: { cotizacionId: string }
     </div>
   );
 }
+

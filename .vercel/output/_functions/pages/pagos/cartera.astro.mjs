@@ -1,7 +1,7 @@
 import { e as createComponent, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_BUC8yk9S.mjs';
 import 'piccolore';
-import { $ as $$MainLayout } from '../../chunks/MainLayout_CmTjyfoz.mjs';
-import { C as CarteraTable } from '../../chunks/CarteraTable_BkJI3xfV.mjs';
+import { $ as $$MainLayout } from '../../chunks/MainLayout_DCJG7FNs.mjs';
+import { C as CarteraTable } from '../../chunks/CarteraTable_C16CY3sn.mjs';
 export { renderers } from '../../renderers.mjs';
 
 const $$Cartera = createComponent(($$result, $$props, $$slots) => {

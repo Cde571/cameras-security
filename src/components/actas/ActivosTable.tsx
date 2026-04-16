@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { ActivoEntregado } from "../../lib/services/actaLocalService";
+import type { ActivoEntregado } from "../../lib/repositories/actaRepo";
 
 type Props = {
   value: ActivoEntregado[];
@@ -108,3 +108,4 @@ export default function ActivosTable({ value, onChange }: Props) {
     </div>
   );
 }
+

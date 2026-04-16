@@ -1,13 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import {
-  Search,
-  Bell,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-} from "lucide-react";
-import { getCurrentUser, logout } from "../../lib/services/authLocalService";
+import { Search, Bell, Settings, LogOut, Menu, X } from "lucide-react";
+import { fetchCurrentUser, getCurrentUser, logout, type User } from "../../lib/repositories/authRepo";
 
 function roleLabel(role?: string) {
   if (role === "admin") return "Administrador";
@@ -25,24 +18,30 @@ function initialsFromName(name?: string) {
 export default function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<User | null>(() => getCurrentUser());
 
   useEffect(() => {
-    setCurrentUser(getCurrentUser());
+    let mounted = true;
+    fetchCurrentUser().then((user) => {
+      if (mounted) setCurrentUser(user);
+    });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const notifications = useMemo(() => [
-    { id: 1, type: "warning", message: "Cotización COT-2024-032 vence mañana", time: "Hace 5 min" },
-    { id: 2, type: "success", message: "Pago recibido de Hotel Plaza Real", time: "Hace 1 hora" },
-    { id: 3, type: "info", message: "Nueva orden OT-2024-124 creada", time: "Hace 2 horas" },
+    { id: 1, type: "warning", message: "Cotización próxima a vencer", time: "Hace 5 min" },
+    { id: 2, type: "success", message: "Pago registrado correctamente", time: "Hace 1 hora" },
+    { id: 3, type: "info", message: "Orden actualizada", time: "Hace 2 horas" },
   ], []);
 
-  const userName = currentUser?.name || "Usuario";
+  const userName = currentUser?.name || "Sesión activa";
   const userRole = roleLabel(currentUser?.role);
   const userInitials = initialsFromName(userName);
 
-  const doLogout = () => {
-    logout();
+  const doLogout = async () => {
+    await logout();
     window.location.href = "/auth/login";
   };
 
@@ -117,11 +116,6 @@ export default function Header() {
                   </div>
                 ))}
               </div>
-              <div className="border-t border-gray-200 p-3">
-                <button className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700">
-                  Ver todas las notificaciones
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -141,7 +135,7 @@ export default function Header() {
             <p className="text-sm font-semibold text-gray-800">{userName}</p>
             <p className="text-xs text-gray-500">{userRole}</p>
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-white transition-colors hover:bg-blue-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-white">
             <span className="text-sm font-semibold">{userInitials}</span>
           </div>
         </div>
@@ -161,3 +155,4 @@ export default function Header() {
     </div>
   );
 }
+

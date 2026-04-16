@@ -5,15 +5,17 @@ import ProductoSelector from "./ProductoSelector";
 import ItemsTable from "./ItemsTable";
 import TotalesPanel from "./TotalesPanel";
 
-import { getCliente, type Cliente } from "../../lib/services/clienteLocalService";
 import {
+  getCliente,
+  type Cliente,
   createCotizacion,
   getCotizacion,
   listPlantillas,
   updateCotizacion,
   type CotizacionItem,
   type CotizacionStatus,
-} from "../../lib/services/cotizacionLocalService";
+} from "../../lib/flow/data";
+import { getFlowContext, toClienteSnapshot } from "../../lib/flow/context";
 
 type Props = { mode: "create" | "edit"; cotizacionId?: string };
 
@@ -61,21 +63,30 @@ export default function CotizacionForm({ mode, cotizacionId }: Props) {
     setLoading(false);
   }, [isEdit, cotizacionId]);
 
+  useEffect(() => {
+    if (isEdit) return;
+
+    const ctx = getFlowContext();
+    if (!ctx.clienteId) return;
+
+    const c = getCliente(ctx.clienteId);
+    if (!c) return;
+
+    setClienteId(c.id);
+    setClienteSnap(toClienteSnapshot(c));
+
+    if (!asunto.trim() && ctx.from === "cliente") {
+      setAsunto("Cotización de suministro / servicio");
+    }
+  }, [isEdit]);
+
   const canSave = useMemo(() => {
-    return clienteId && items.length > 0;
+    return Boolean(clienteId) && items.length > 0;
   }, [clienteId, items.length]);
 
   const onPickCliente = (c: Cliente) => {
     setClienteId(c.id);
-    setClienteSnap({
-      id: c.id,
-      nombre: c.nombre,
-      documento: c.documento,
-      telefono: c.telefono,
-      email: c.email,
-      direccion: c.direccion,
-      ciudad: c.ciudad,
-    });
+    setClienteSnap(toClienteSnapshot(c));
   };
 
   const applyTemplate = () => {
@@ -159,98 +170,122 @@ export default function CotizacionForm({ mode, cotizacionId }: Props) {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 space-y-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
           <ClienteSelector value={clienteId} onChange={onPickCliente} />
-          <ProductoSelector onAdd={(it) => setItems((prev) => [it, ...prev])} />
-          <ItemsTable items={items} onChange={setItems} />
 
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-            <h3 className="font-semibold text-gray-900">Condiciones / Plantillas</h3>
+            <h3 className="font-semibold text-gray-900">Datos generales</h3>
 
-            <div className="flex flex-col md:flex-row gap-2 md:items-end">
-              <div className="flex-1 space-y-1">
-                <label className="text-xs font-semibold text-gray-600">Plantilla</label>
-                <select value={tplId} onChange={(e) => setTplId(e.target.value)}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">Fecha</label>
+                <input
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                >
-                  {plantillas.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nombre}</option>
-                  ))}
-                </select>
+                />
               </div>
 
-              <button type="button" onClick={applyTemplate}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50"
-              >
-                Insertar plantilla
-              </button>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">Vigencia (días)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={vigenciaDias}
+                  onChange={(e) => setVigenciaDias(Number(e.target.value || 15))}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                />
+              </div>
 
-              <a href="/cotizaciones/plantillas" className="rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
-                Gestionar plantillas
-              </a>
-            </div>
-
-            <textarea
-              value={condiciones}
-              onChange={(e) => setCondiciones(e.target.value)}
-              className="min-h-[180px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
-              placeholder="Condiciones, garantía, forma de pago, tiempos..."
-            />
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-2">
-            <h3 className="font-semibold text-gray-900">Notas</h3>
-            <textarea
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              className="min-h-[120px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
-              placeholder="Notas internas o para el cliente..."
-            />
-          </div>
-        </div>
-
-        <aside className="space-y-5">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-            <h3 className="font-semibold text-gray-900">Datos</h3>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-600">Fecha</label>
-              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-600">Vigencia (días)</label>
-              <input type="number" min={1} value={vigenciaDias} onChange={(e) => setVigenciaDias(Number(e.target.value || 15))}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-600">Estado</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value as any)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-              >
-                <option value="borrador">Borrador</option>
-                <option value="enviada">Enviada</option>
-                <option value="aceptada">Aceptada</option>
-                <option value="rechazada">Rechazada</option>
-                <option value="vencida">Vencida</option>
-              </select>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">Estado</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as CotizacionStatus)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="borrador">Borrador</option>
+                  <option value="enviada">Enviada</option>
+                  <option value="aceptada">Aceptada</option>
+                  <option value="rechazada">Rechazada</option>
+                  <option value="vencida">Vencida</option>
+                </select>
+              </div>
             </div>
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-gray-600">Asunto</label>
-              <input value={asunto} onChange={(e) => setAsunto(e.target.value)}
+              <input
+                value={asunto}
+                onChange={(e) => setAsunto(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                placeholder="Ej: Sistema de 8 cámaras + acceso remoto"
+                placeholder="Ej: Suministro e instalación de CCTV"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600">Plantilla de condiciones</label>
+                <select
+                  value={tplId}
+                  onChange={(e) => setTplId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  {plantillas.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={applyTemplate}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50"
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-600">Condiciones</label>
+              <textarea
+                value={condiciones}
+                onChange={(e) => setCondiciones(e.target.value)}
+                className="min-h-[140px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                placeholder="Garantías, forma de pago, tiempos..."
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-600">Notas</label>
+              <textarea
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                className="min-h-[110px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                placeholder="Notas internas o adicionales"
               />
             </div>
           </div>
 
+          <ProductoSelector onAdd={(item) => setItems((prev) => [...prev, item as any])} />
+          <ItemsTable value={items} onChange={setItems} />
+        </div>
+
+        <aside className="space-y-5">
           <TotalesPanel items={items} />
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-2">
+            <h3 className="font-semibold text-gray-900">Contexto del flujo</h3>
+            <p className="text-sm text-gray-600">
+              Si entraste desde un cliente, el formulario ya queda con el cliente precargado.
+            </p>
+          </div>
         </aside>
       </div>
     </form>

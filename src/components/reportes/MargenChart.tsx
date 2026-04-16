@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import type { MargenItem } from "../../lib/services/reporteLocalService";
+import type { MargenItem } from "../../lib/repositories/reporteRepo";
 
 function money(n: number) {
   try { return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }); }
@@ -32,3 +32,4 @@ export default function MargenChart({ data }: { data: MargenItem[] }) {
     </div>
   );
 }
+

@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import type { TopItem } from "../../lib/services/reporteLocalService";
+import type { TopItem } from "../../lib/repositories/reporteRepo";
 
 function money(n: number) {
   try { return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }); }
@@ -26,3 +26,4 @@ export default function TopClientes({ data }: { data: TopItem[] }) {
     </div>
   );
 }
+

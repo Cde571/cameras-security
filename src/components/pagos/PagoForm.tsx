@@ -1,8 +1,15 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Save } from "lucide-react";
 import ClienteSelector from "../cotizaciones/ClienteSelector";
-import { getCliente, type Cliente } from "../../lib/services/clienteLocalService";
-import { createPago, listCobros, type PagoMetodo } from "../../lib/services/cobroPagoLocalService";
+import {
+  createPago,
+  getCliente,
+  getCobro,
+  listCobros,
+  type Cliente,
+  type PagoMetodo,
+} from "../../lib/flow/data";
+import { getFlowContext, toClienteSnapshot } from "../../lib/flow/context";
 
 export default function PagoForm() {
   const [clienteId, setClienteId] = useState("");
@@ -15,29 +22,49 @@ export default function PagoForm() {
   const [referencia, setReferencia] = useState("");
   const [notas, setNotas] = useState("");
 
-  const cobrosCliente = useMemo(() => (clienteId ? listCobros("").filter(c => c.clienteId === clienteId) : []), [clienteId]);
+  const cobrosCliente = useMemo(() => (clienteId ? listCobros("").filter((c) => c.clienteId === clienteId) : []), [clienteId]);
   const [cobroId, setCobroId] = useState<string>("");
 
   const canSave = useMemo(() => Boolean(clienteId) && valor > 0, [clienteId, valor]);
 
   useEffect(() => {
-    // seed
-    listCobros("");
+    const ctx = getFlowContext();
+
+    if (ctx.cobroId) {
+      const cobro = getCobro(ctx.cobroId);
+      if (cobro) {
+        setClienteId(cobro.clienteId);
+        setClienteSnap(cobro.cliente);
+        setCobroId(cobro.id);
+        setValor(Number(cobro.total || 0));
+        setReferencia((prev) => prev || cobro.numero);
+        setNotas((prev) => prev || `Pago asociado al cobro ${cobro.numero}.`);
+        return;
+      }
+    }
+
+    if (ctx.clienteId) {
+      const c = getCliente(ctx.clienteId);
+      if (c) {
+        setClienteId(c.id);
+        setClienteSnap(toClienteSnapshot(c));
+      }
+    }
   }, []);
 
   const onPickCliente = (c: Cliente) => {
     setClienteId(c.id);
-    setClienteSnap({
-      id: c.id,
-      nombre: c.nombre,
-      documento: c.documento,
-      telefono: c.telefono,
-      email: c.email,
-      direccion: c.direccion,
-      ciudad: c.ciudad,
-    });
+    setClienteSnap(toClienteSnapshot(c));
     setCobroId("");
   };
+
+  useEffect(() => {
+    if (!cobroId) return;
+    const selected = cobrosCliente.find((c) => c.id === cobroId);
+    if (!selected) return;
+    if (valor <= 0) setValor(Number(selected.total || 0));
+    if (!referencia.trim()) setReferencia(selected.numero);
+  }, [cobroId, cobrosCliente]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,14 +111,14 @@ export default function PagoForm() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 space-y-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
           <ClienteSelector value={clienteId} onChange={onPickCliente} />
 
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
             <h3 className="font-semibold text-gray-900">Datos del pago</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-gray-600">Fecha</label>
                 <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)}
@@ -152,12 +179,12 @@ export default function PagoForm() {
         </div>
 
         <aside className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-2">
-          <h3 className="font-semibold text-gray-900">Regla (front-first)</h3>
+          <h3 className="font-semibold text-gray-900">Regla actual</h3>
           <p className="text-sm text-gray-600">
-            Si asocias un pago a una cuenta, marcamos el cobro como <b>pagado</b> (pago total).
+            Si asocias un pago a una cuenta, el flujo queda amarrado desde el cobro y regresa al detalle al guardar.
           </p>
           <p className="text-xs text-gray-500">
-            Luego: pagos parciales, abonos, saldo por cobro.
+            Más adelante podrás manejar abonos parciales y saldo pendiente por cobro.
           </p>
         </aside>
       </div>

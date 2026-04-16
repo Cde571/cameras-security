@@ -1,6 +1,12 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Lock, Mail, LogIn, ShieldCheck } from "lucide-react";
-import { getSession, login, listAuthUsers } from "../../lib/services/authLocalService";
+import { fetchCurrentUser, login } from "../../lib/repositories/authRepo";
+
+function getNextUrl() {
+  if (typeof window === "undefined") return "/";
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next || "/";
+}
 
 export default function LoginForm() {
   const [email, setEmail] = useState("admin@empresa.com");
@@ -9,18 +15,24 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  const demoUsers = useMemo(() => {
-    if (typeof window === "undefined") return [];
-    return listAuthUsers().slice(0, 3);
-  }, []);
-
   useEffect(() => {
-    const session = getSession();
-    if (session?.user?.id) {
-      window.location.href = "/";
-      return;
-    }
-    setChecking(false);
+    let mounted = true;
+
+    (async () => {
+      const current = await fetchCurrentUser();
+      if (!mounted) return;
+
+      if (current?.id) {
+        window.location.href = getNextUrl();
+        return;
+      }
+
+      setChecking(false);
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const canSubmit = useMemo(() => {
@@ -33,10 +45,10 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      login(email, password);
-      window.location.href = "/";
+      await login(email, password);
+      window.location.href = getNextUrl();
     } catch (err: any) {
-      setError(err?.message ?? "Error al iniciar sesión");
+      setError(err?.message || "No fue posible iniciar sesión");
       setLoading(false);
     }
   };
@@ -60,7 +72,7 @@ export default function LoginForm() {
           </div>
           <h1 className="text-xl font-bold text-gray-900">Iniciar sesión</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Acceso según usuarios y roles configurados en el sistema.
+            Acceso con cookie de sesión segura, middleware y control básico por roles.
           </p>
         </div>
 
@@ -113,25 +125,10 @@ export default function LoginForm() {
           </button>
 
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
-            <p className="mb-2 font-semibold text-gray-700">Usuarios demo actuales</p>
-            <div className="space-y-1">
-              {demoUsers.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => {
-                    setEmail(u.email);
-                    setPassword(u.password);
-                  }}
-                  className="flex w-full items-center justify-between rounded-lg bg-white px-3 py-2 text-left hover:border-blue-200 hover:bg-blue-50"
-                >
-                  <span>
-                    <span className="font-medium text-gray-800">{u.email}</span>
-                    <span className="ml-2 uppercase text-[10px] text-gray-500">{u.rol}</span>
-                  </span>
-                  <span className="text-gray-500">{u.password}</span>
-                </button>
-              ))}
+            Usuario inicial:
+            <div className="mt-2 rounded-lg bg-white px-3 py-2">
+              <div><strong>Email:</strong> admin@empresa.com</div>
+              <div><strong>Password:</strong> admin123</div>
             </div>
           </div>
         </form>
@@ -139,3 +136,5 @@ export default function LoginForm() {
     </div>
   );
 }
+
+

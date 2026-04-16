@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Download, RefreshCw, ArrowLeft } from "lucide-react";
-import { getCotizacion, type Cotizacion } from "../../lib/services/cotizacionLocalService";
+import { getCotizacion, type Cotizacion } from "../../lib/repositories/cotizacionRepo";
 import { generateCotizacionPdfBytes, type CotizacionPDFInput } from "../../lib/pdf/cotizacionPDF";
 
 export default function PDFPreview({ cotizacionId }: { cotizacionId: string }) {
@@ -149,3 +149,4 @@ export default function PDFPreview({ cotizacionId }: { cotizacionId: string }) {
     </div>
   );
 }
+

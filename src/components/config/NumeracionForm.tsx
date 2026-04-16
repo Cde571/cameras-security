@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { Save } from "lucide-react";
-import { getNumeracion, setNumeracion } from "../../lib/services/configLocalService";
+import { getNumeracion, setNumeracion } from "../../lib/repositories/configRepo";
 
 export default function NumeracionForm() {
   const [form, setForm] = useState(getNumeracion());
@@ -87,3 +87,4 @@ export default function NumeracionForm() {
     </div>
   );
 }
+

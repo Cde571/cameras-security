@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Pencil, Trash2, Package, Filter } from "lucide-react";
-import { deleteProducto, getProductoMeta, listProductos } from "../../lib/services/productoLocalService";
+import { deleteProducto, getProductoMeta, listProductos } from "../../lib/repositories/productoRepo";
 
 function money(n: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n || 0);
@@ -164,3 +164,4 @@ export default function ProductosList() {
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { Trash2 } from "lucide-react";
-import type { CotizacionItem } from "../../lib/services/cotizacionLocalService";
+import type { CotizacionItem } from "../../lib/repositories/cotizacionRepo";
 
 type Props = {
   items: CotizacionItem[];
@@ -114,3 +114,4 @@ export default function ItemsTable({ items, onChange }: Props) {
     </div>
   );
 }
+

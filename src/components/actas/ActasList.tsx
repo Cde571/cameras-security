@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Eye, FileText, Trash2 } from "lucide-react";
-import { deleteActa, listActas } from "../../lib/services/actaLocalService";
+import { deleteActa, listActas } from "../../lib/repositories/actaRepo";
 
 export default function ActasList() {
   const [q, setQ] = useState("");
@@ -104,3 +104,4 @@ export default function ActasList() {
     </div>
   );
 }
+

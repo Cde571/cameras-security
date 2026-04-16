@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { Save } from "lucide-react";
-import { getEmpresa, setEmpresa } from "../../lib/services/configLocalService";
+import { getEmpresa, setEmpresa } from "../../lib/repositories/configRepo";
 
 export default function EmpresaForm() {
   const [form, setForm] = useState(getEmpresa());
@@ -97,3 +97,4 @@ export default function EmpresaForm() {
     </div>
   );
 }
+

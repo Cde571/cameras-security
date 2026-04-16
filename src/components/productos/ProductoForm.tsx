@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Save } from "lucide-react";
-import { createProducto, getProducto, getProductoMeta, updateProducto } from "../../lib/services/productoLocalService";
+import { createProducto, getProducto, getProductoMeta, updateProducto } from "../../lib/repositories/productoRepo";
 
 type Props = { mode: "create" | "edit"; productoId?: string };
 
@@ -213,3 +213,4 @@ export default function ProductoForm({ mode, productoId }: Props) {
     </form>
   );
 }
+

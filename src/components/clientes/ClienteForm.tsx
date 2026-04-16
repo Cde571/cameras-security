@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Save, ArrowLeft } from "lucide-react";
-import { createCliente, getCliente, updateCliente } from "../../lib/services/clienteLocalService";
+import { createCliente, getCliente, updateCliente } from "../../lib/repositories/clienteRepo";
 
 type Props = {
   mode: "create" | "edit";
@@ -208,3 +208,4 @@ export default function ClienteForm({ mode, clienteId }: Props) {
     </form>
   );
 }
+
