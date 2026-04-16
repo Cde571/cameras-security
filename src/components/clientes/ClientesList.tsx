@@ -1,23 +1,63 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Plus, Search, Download, Upload, Pencil, Eye, Trash2, History } from "lucide-react";
 import { deleteCliente, listClientes } from "../../lib/repositories/clienteRepo";
+
+type Cliente = {
+  id: string;
+  nombre: string;
+  documento?: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+  ciudad?: string;
+  notas?: string;
+  estado?: "activo" | "inactivo";
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 export default function ClientesList() {
   const [q, setQ] = useState("");
   const [refresh, setRefresh] = useState(0);
-
-  const clientes = useMemo(() => listClientes(q), [q, refresh]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // fuerza seed inicial
-    listClientes("");
-  }, []);
+    let cancelled = false;
 
-  const onDelete = (id: string) => {
+    async function cargar() {
+      try {
+        setLoading(true);
+        const data = await listClientes(q);
+        if (!cancelled) {
+          setClientes(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error("Error cargando clientes:", error);
+        if (!cancelled) setClientes([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    cargar();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [q, refresh]);
+
+  const onDelete = async (id: string) => {
     const ok = confirm("¿Eliminar este cliente? Esta acción no se puede deshacer.");
     if (!ok) return;
-    deleteCliente(id);
-    setRefresh((n) => n + 1);
+
+    try {
+      await deleteCliente(id);
+      setRefresh((n) => n + 1);
+    } catch (error) {
+      console.error("Error eliminando cliente:", error);
+      alert("No fue posible eliminar el cliente.");
+    }
   };
 
   return (
@@ -60,7 +100,7 @@ export default function ClientesList() {
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
           <p className="text-sm font-medium text-gray-700">
-            {clientes.length} cliente(s)
+            {loading ? "Cargando..." : `${clientes.length} cliente(s)`}
           </p>
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <span className="inline-flex items-center gap-1"><Upload className="h-3 w-3" /> CSV</span>
@@ -68,7 +108,11 @@ export default function ClientesList() {
           </div>
         </div>
 
-        {clientes.length === 0 ? (
+        {loading ? (
+          <div className="p-8 text-center">
+            <p className="text-gray-700 font-medium">Cargando clientes...</p>
+          </div>
+        ) : clientes.length === 0 ? (
           <div className="p-8 text-center">
             <p className="text-gray-700 font-medium">Sin resultados</p>
             <p className="text-sm text-gray-500 mt-1">Prueba con otra búsqueda o crea un cliente nuevo.</p>
@@ -121,8 +165,13 @@ export default function ClientesList() {
                       <a className="rounded-lg border border-gray-300 p-2 hover:bg-white" href={`/clientes/${c.id}/historial`} title="Historial">
                         <History className="h-4 w-4" />
                       </a>
-                      <button className="rounded-lg border border-gray-300 p-2 hover:bg-white" onClick={() => onDelete(c.id)} title="Eliminar">
-                        <Trash2 className="h-4 w-4 text-red-600" />
+                      <button
+                        type="button"
+                        className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50"
+                        onClick={() => onDelete(c.id)}
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -135,4 +184,3 @@ export default function ClientesList() {
     </div>
   );
 }
-

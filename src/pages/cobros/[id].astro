@@ -1,12 +1,10 @@
-﻿---
-export const prerender = false;
-
+---
 import MainLayout from "../../layouts/MainLayout.astro";
-import CobroDetail from "../../components/cobros/CobroDetail";
+import CuentaDetail from "../../components/cobros/CuentaDetail";
 
-const { id } = Astro.params;
+const cobroId = Astro.params.id ?? "";
 ---
 
-<MainLayout title={`Cobro ${id}`}>
-  <CobroDetail client:load cobroId={id!} />
+<MainLayout>
+  <CuentaDetail cobroId={cobroId} client:load />
 </MainLayout>

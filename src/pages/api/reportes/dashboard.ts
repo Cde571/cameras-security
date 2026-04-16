@@ -1,154 +1,190 @@
-﻿import type { APIRoute } from "astro";
+import type { APIRoute } from "astro";
 import { getSqlClient } from "../../../lib/db/client";
-import type { DashboardMetrics } from "../../../types/dashboard";
 
-function toNumber(value: any): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+function json(data: any, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
-function mapStatus(value: any): string {
-  return String(value ?? "").toLowerCase();
+async function tableExists(sql: any, tableName: string) {
+  const rows = await sql`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ${tableName}
+    ) AS ok
+  `;
+  return Boolean(rows[0]?.ok);
+}
+
+async function columnExists(sql: any, tableName: string, columnName: string) {
+  const rows = await sql`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = ${tableName}
+        AND column_name = ${columnName}
+    ) AS ok
+  `;
+  return Boolean(rows[0]?.ok);
+}
+
+async function safeCount(sql: any, tableName: string) {
+  if (!(await tableExists(sql, tableName))) return 0;
+  const rows = await sql.unsafe(`SELECT count(*)::int AS total FROM ${tableName}`);
+  return Number(rows[0]?.total || 0);
+}
+
+async function safeSum(sql: any, tableName: string, columnName: string) {
+  if (!(await tableExists(sql, tableName))) return 0;
+  if (!(await columnExists(sql, tableName, columnName))) return 0;
+  const rows = await sql.unsafe(`SELECT COALESCE(sum(${columnName}),0)::numeric AS total FROM ${tableName}`);
+  return Number(rows[0]?.total || 0);
 }
 
 export const GET: APIRoute = async () => {
   try {
     const sql = getSqlClient();
 
-    const [
-      cotizacionesCountRows,
-      ordenesCountRows,
-      cobrosCountRows,
-      pagosCountRows,
-      clientesCountRows,
-      productosCountRows,
-      cotPendRows,
-      ordCursoRows,
-      totalMesRows,
-      carteraRows,
-      recentCotRows,
-      recentOrdenRows,
-      recentCobroRows
-    ] = await Promise.all([
-      sql`SELECT COUNT(*)::int AS total FROM cotizaciones`,
-      sql`SELECT COUNT(*)::int AS total FROM ordenes`,
-      sql`SELECT COUNT(*)::int AS total FROM cobros`,
-      sql`SELECT COUNT(*)::int AS total FROM pagos`,
-      sql`SELECT COUNT(*)::int AS total FROM clientes`,
-      sql`SELECT COUNT(*)::int AS total FROM productos`,
-      sql`
-        SELECT COUNT(*)::int AS total
-        FROM cotizaciones
-        WHERE lower(coalesce(status, 'pendiente')) IN ('borrador', 'enviada', 'pendiente')
-      `,
-      sql`
-        SELECT COUNT(*)::int AS total
-        FROM ordenes
-        WHERE lower(coalesce(status, 'pendiente')) IN ('pendiente', 'en_progreso', 'en progreso', 'en_revision', 'en revisión')
-      `,
-      sql`
-        SELECT COALESCE(SUM(total), 0)::float AS total
-        FROM cotizaciones
-        WHERE date_trunc('month', coalesce(fecha, current_date)::timestamp) = date_trunc('month', now())
-      `,
-      sql`
-        SELECT COALESCE(SUM(GREATEST(c.total - COALESCE(p.pagado, 0), 0)), 0)::float AS total
-        FROM cobros c
-        LEFT JOIN (
-          SELECT coalesce(cobro_id, cuenta_cobro_id) AS cobro_fk, COALESCE(SUM(coalesce(valor, monto, 0)), 0) AS pagado
-          FROM pagos
-          GROUP BY coalesce(cobro_id, cuenta_cobro_id)
-        ) p ON p.cobro_fk = c.id
-      `,
-      sql`
-        SELECT
-          c.id::text AS id,
-          'cotizacion'::text AS type,
-          coalesce(c.numero, 'COT-' || substring(c.id::text, 1, 8)) AS number,
-          coalesce(cl.nombre, 'Sin cliente') AS client,
-          coalesce(c.total, 0)::float AS amount,
-          coalesce(c.fecha::text, now()::date::text) AS date,
-          lower(coalesce(c.status, 'pendiente')) AS status
-        FROM cotizaciones c
-        LEFT JOIN clientes cl ON cl.id = c.cliente_id
-        ORDER BY coalesce(c.updated_at, c.created_at, now()) DESC
-        LIMIT 5
-      `,
-      sql`
-        SELECT
-          o.id::text AS id,
-          'orden'::text AS type,
-          coalesce(o.numero, 'OT-' || substring(o.id::text, 1, 8)) AS number,
-          coalesce(cl.nombre, 'Sin cliente') AS client,
-          0::float AS amount,
-          coalesce(o.fecha::text, now()::date::text) AS date,
-          lower(coalesce(o.status, 'pendiente')) AS status
-        FROM ordenes o
-        LEFT JOIN clientes cl ON cl.id = o.cliente_id
-        ORDER BY coalesce(o.updated_at, o.created_at, now()) DESC
-        LIMIT 5
-      `,
-      sql`
-        SELECT
-          c.id::text AS id,
-          'cobro'::text AS type,
-          coalesce(c.numero, 'CC-' || substring(c.id::text, 1, 8)) AS number,
-          coalesce(cl.nombre, 'Sin cliente') AS client,
-          coalesce(c.total, 0)::float AS amount,
-          coalesce(c.fecha::text, now()::date::text) AS date,
-          lower(coalesce(c.status, 'pendiente')) AS status
-        FROM cobros c
-        LEFT JOIN clientes cl ON cl.id = c.cliente_id
-        ORDER BY coalesce(c.updated_at, c.created_at, now()) DESC
-        LIMIT 5
-      `
-    ]);
+    const hasClientes = await tableExists(sql, "clientes");
+    const hasProductos = await tableExists(sql, "productos");
+    const hasCotizaciones = await tableExists(sql, "cotizaciones");
+    const hasOrdenes = await tableExists(sql, "ordenes");
+    const hasActas = await tableExists(sql, "actas");
+    const hasCobros = await tableExists(sql, "cuentas_cobro");
+    const hasPagos = await tableExists(sql, "pagos");
 
-    const recentDocs = [
-      ...recentCotRows,
-      ...recentOrdenRows,
-      ...recentCobroRows,
-    ]
-      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 8);
+    const totalVentas = hasCotizaciones ? await safeSum(sql, "cotizaciones", "total") : 0;
+    const totalCobrado = hasPagos ? await safeSum(sql, "pagos", "valor") : 0;
 
-    const alerts = [];
-
-    const pendingCobros = toNumber(cobrosCountRows?.[0]?.total);
-    if (pendingCobros > 0) {
-      alerts.push({
-        id: 1,
-        type: "danger",
-        message: `${pendingCobros} documento(s) financieros registrados`,
-        action: "/cobros",
-      });
+    let carteraPendiente = 0;
+    if (hasCobros) {
+      if (hasPagos) {
+        const rows = await sql`
+          SELECT COALESCE(sum(base.saldo), 0)::numeric AS total
+          FROM (
+            SELECT
+              cc.id,
+              GREATEST(cc.total - COALESCE(sum(p.valor), 0), 0) AS saldo
+            FROM cuentas_cobro cc
+            LEFT JOIN pagos p ON p.cuenta_cobro_id = cc.id
+            GROUP BY cc.id, cc.total
+          ) base
+        `;
+        carteraPendiente = Number(rows[0]?.total || 0);
+      } else {
+        carteraPendiente = await safeSum(sql, "cuentas_cobro", "total");
+      }
     }
 
-    const metrics: DashboardMetrics = {
-      totalCotizadoMes: toNumber(totalMesRows?.[0]?.total),
-      cotizacionesPendientes: toNumber(cotPendRows?.[0]?.total),
-      ordenesEnCurso: toNumber(ordCursoRows?.[0]?.total),
-      carteraPendiente: toNumber(carteraRows?.[0]?.total),
-      recentDocs,
-      alerts,
-      counts: {
-        cotizaciones: toNumber(cotizacionesCountRows?.[0]?.total),
-        ordenes: toNumber(ordenesCountRows?.[0]?.total),
-        cobros: toNumber(cobrosCountRows?.[0]?.total),
-        pagos: toNumber(pagosCountRows?.[0]?.total),
-        clientes: toNumber(clientesCountRows?.[0]?.total),
-        productos: toNumber(productosCountRows?.[0]?.total),
+    const clientes = hasClientes ? await safeCount(sql, "clientes") : 0;
+    const productos = hasProductos ? await safeCount(sql, "productos") : 0;
+    const cotizaciones = hasCotizaciones ? await safeCount(sql, "cotizaciones") : 0;
+
+    let ordenesAbiertas = 0;
+    if (hasOrdenes && (await columnExists(sql, "ordenes", "status"))) {
+      const rows = await sql`
+        SELECT count(*)::int AS total
+        FROM ordenes
+        WHERE coalesce(status, '') NOT IN ('finalizada', 'cancelada')
+      `;
+      ordenesAbiertas = Number(rows[0]?.total || 0);
+    } else if (hasOrdenes) {
+      ordenesAbiertas = await safeCount(sql, "ordenes");
+    }
+
+    let actasFirmadas = 0;
+    if (hasActas && (await columnExists(sql, "actas", "estado"))) {
+      const rows = await sql`
+        SELECT count(*)::int AS total
+        FROM actas
+        WHERE lower(coalesce(estado, '')) = 'firmada'
+      `;
+      actasFirmadas = Number(rows[0]?.total || 0);
+    } else if (hasActas) {
+      actasFirmadas = await safeCount(sql, "actas");
+    }
+
+    let recientesCotizaciones: any[] = [];
+    if (hasCotizaciones) {
+      recientesCotizaciones = await sql`
+        SELECT
+          ctz.id::text AS id,
+          ctz.numero,
+          ctz.fecha::text AS fecha,
+          ctz.total,
+          ctz.status,
+          coalesce(cli.nombre, '—') AS cliente
+        FROM cotizaciones ctz
+        LEFT JOIN clientes cli ON cli.id = ctz.cliente_id
+        ORDER BY coalesce(ctz.updated_at, ctz.created_at, now()) DESC
+        LIMIT 5
+      `;
+    }
+
+    let recientesCobros: any[] = [];
+    if (hasCobros) {
+      recientesCobros = await sql`
+        SELECT
+          cc.id::text AS id,
+          cc.numero,
+          cc.fecha_emision::text AS fecha,
+          cc.total,
+          cc.status,
+          coalesce(cli.nombre, '—') AS cliente
+        FROM cuentas_cobro cc
+        LEFT JOIN clientes cli ON cli.id = cc.cliente_id
+        ORDER BY coalesce(cc.updated_at, cc.created_at, now()) DESC
+        LIMIT 5
+      `;
+    }
+
+    let recientesPagos: any[] = [];
+    if (hasPagos) {
+      recientesPagos = await sql`
+        SELECT
+          p.id::text AS id,
+          p.fecha::text AS fecha,
+          p.valor,
+          p.metodo,
+          p.referencia,
+          coalesce(cli.nombre, '—') AS cliente
+        FROM pagos p
+        LEFT JOIN clientes cli ON cli.id = p.cliente_id
+        ORDER BY coalesce(p.updated_at, p.created_at, now()) DESC
+        LIMIT 5
+      `;
+    }
+
+    const payload = {
+      kpis: {
+        totalVentas,
+        totalCobrado,
+        carteraPendiente,
+        clientes,
+        productos,
+        cotizaciones,
+        ordenesAbiertas,
+        actasFirmadas,
+      },
+      recientes: {
+        cotizaciones: recientesCotizaciones,
+        cobros: recientesCobros,
+        pagos: recientesPagos,
       },
     };
 
-    return new Response(JSON.stringify({ ok: true, metrics }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch {
-    return new Response(JSON.stringify({ ok: false, metrics: null }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(payload, 200);
+  } catch (error: any) {
+    console.error("[api/reportes/dashboard][GET]", error);
+    return json({
+      error: error?.message || "No fue posible cargar el dashboard de reportes",
+      code: error?.code || null,
+      detail: error?.detail || null,
+    }, 500);
   }
 };

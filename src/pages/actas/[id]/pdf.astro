@@ -1,12 +1,491 @@
-﻿---
-export const prerender = false;
+---
+import { getSqlClient } from "../../../lib/db/client";
 
-import PrintLayout from "../../../layouts/PrintLayout.astro";
-import PDFPreview from "../../../components/actas/PDFPreview";
+const actaId = Astro.params.id ?? "";
+const sql = getSqlClient();
 
-const { id } = Astro.params;
+function parseObservaciones(text) {
+  const raw = String(text || "").replace(/\r\n/g, "\n");
+
+  const result = {
+    notas: "",
+    tecnico: "",
+    recibe: "",
+    documento: "",
+    items: [],
+  };
+
+  if (!raw.trim()) return result;
+
+  const idxResponsables = raw.indexOf("Responsables:");
+  const idxItems = raw.indexOf("Activos / elementos entregados:");
+
+  if (idxResponsables >= 0) {
+    result.notas = raw.slice(0, idxResponsables).trim();
+  } else if (idxItems >= 0) {
+    result.notas = raw.slice(0, idxItems).trim();
+  } else {
+    result.notas = raw.trim();
+  }
+
+  if (idxResponsables >= 0) {
+    const responsablesBlock = raw.slice(
+      idxResponsables,
+      idxItems >= 0 ? idxItems : raw.length
+    );
+
+    const tecnicoMatch = responsablesBlock.match(/Técnico:\s*(.*)/);
+    const recibeMatch = responsablesBlock.match(/Recibe:\s*(.*)/);
+    const documentoMatch = responsablesBlock.match(/Documento:\s*(.*)/);
+
+    result.tecnico = tecnicoMatch?.[1]?.trim() || "";
+    result.recibe = recibeMatch?.[1]?.trim() || "";
+    result.documento = documentoMatch?.[1]?.trim() || "";
+  }
+
+  if (idxItems >= 0) {
+    const itemsBlock = raw.slice(idxItems).replace("Activos / elementos entregados:", "").trim();
+    const regex = /(?:^|\n)(\d+)\.\s*(.+?)(?:\n\s*Cantidad:\s*(.+?))?(?:\n\s*Serial:\s*(.+?))?(?:\n\s*Observación:\s*(.+?))?(?=\n\d+\.|\s*$)/gs;
+    let match = null;
+
+    while ((match = regex.exec(itemsBlock)) !== null) {
+      result.items.push({
+        nombre: (match[2] || "").trim(),
+        cantidad: (match[3] || "").trim() || "1",
+        serial: (match[4] || "").trim(),
+        observacion: (match[5] || "").trim(),
+      });
+    }
+  }
+
+  return result;
+}
+
+let acta = null;
+let loadError = "";
+
+try {
+  if (actaId) {
+    const rows = await sql`
+      SELECT
+        a.id::text AS id,
+        a.numero,
+        a.cliente_id::text AS "clienteId",
+        json_build_object(
+          'id', c.id::text,
+          'nombre', c.nombre,
+          'documento', c.documento,
+          'telefono', c.telefono,
+          'email', c.email,
+          'ciudad', c.ciudad
+        ) AS cliente,
+        a.fecha::text AS fecha,
+        a.lugar,
+        coalesce(a.estado, 'borrador') AS status,
+        a.estado,
+        a.observaciones,
+        a.firma_data_url AS "firmaDataUrl",
+        a.created_at::text AS "createdAt",
+        a.updated_at::text AS "updatedAt"
+      FROM actas a
+      LEFT JOIN clientes c ON c.id = a.cliente_id
+      WHERE a.id = ${actaId}::uuid
+      LIMIT 1
+    `;
+
+    acta = rows[0] ?? null;
+  }
+} catch (error) {
+  loadError = error?.message || "No fue posible cargar el acta";
+}
+
+const parsed = parseObservaciones(acta?.observaciones || "");
+const firma = typeof acta?.firmaDataUrl === "string" ? acta.firmaDataUrl : "";
+const tieneFirma = firma.startsWith("data:image/");
 ---
 
-<PrintLayout title={`PDF Acta ${id}`}>
-  <PDFPreview client:load actaId={id!} />
-</PrintLayout>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>{acta?.numero ? `Acta ${acta.numero}` : "Vista previa PDF"}</title>
+    <style>
+      :root {
+        --blue: #8ecae6;
+        --blue-dark: #6fb7db;
+        --border: #202020;
+        --text: #111827;
+        --muted: #4b5563;
+        --bg: #f3f4f6;
+        --white: #ffffff;
+        --section: #d9d9d9;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        font-family: Arial, Helvetica, sans-serif;
+        color: var(--text);
+      }
+
+      .page {
+        width: 100%;
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 28px 18px 48px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .btn {
+        border: 1px solid #bfc4cc;
+        background: white;
+        padding: 12px 18px;
+        border-radius: 14px;
+        text-decoration: none;
+        color: #111827;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .sheet {
+        background: white;
+        border-radius: 22px;
+        border: 1px solid #d6d9de;
+        padding: 18px 18px 30px;
+      }
+
+      .hero {
+        border: 3px solid var(--border);
+        background: var(--blue);
+        text-align: center;
+        font-weight: 800;
+        font-size: 28px;
+        padding: 10px 12px;
+        margin-bottom: 18px;
+      }
+
+      .section-title {
+        background: var(--section);
+        font-size: 16px;
+        font-weight: 700;
+        padding: 8px 10px;
+        margin: 18px 0 10px;
+      }
+
+      .two-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .grid-table th,
+      .grid-table td {
+        border: 2px solid var(--border);
+        padding: 6px 8px;
+        font-size: 14px;
+        vertical-align: middle;
+      }
+
+      .grid-table th {
+        background: var(--blue);
+        font-weight: 700;
+        text-align: center;
+      }
+
+      .narrow-center {
+        text-align: center;
+        width: 70px;
+      }
+
+      .total-wrap {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+      }
+
+      .total-cell {
+        border: 3px solid var(--border);
+        background: var(--blue);
+        font-size: 22px;
+        font-weight: 800;
+        text-align: center;
+        padding: 10px 12px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .firma-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+      }
+
+      .firma-col {
+        border: 2px solid var(--border);
+      }
+
+      .firma-head {
+        background: var(--blue);
+        border-bottom: 2px solid var(--border);
+        text-align: center;
+        font-weight: 700;
+        padding: 8px 10px;
+        font-size: 15px;
+      }
+
+      .firma-box {
+        min-height: 98px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        padding: 8px;
+      }
+
+      .firma-box img {
+        max-width: 100%;
+        max-height: 80px;
+        object-fit: contain;
+      }
+
+      .empty-firma {
+        color: #6b7280;
+        font-size: 13px;
+      }
+
+      .obs-box {
+        border: 2px solid var(--border);
+      }
+
+      .obs-box td {
+        border: 2px solid var(--border);
+        padding: 8px;
+        font-size: 14px;
+        vertical-align: top;
+      }
+
+      .obs-box th {
+        border: 2px solid var(--border);
+        padding: 8px;
+        background: var(--blue);
+        font-size: 14px;
+        text-align: center;
+      }
+
+      .small {
+        font-size: 13px;
+      }
+
+      .spacer {
+        height: 8px;
+      }
+
+      @media print {
+        body {
+          background: white;
+        }
+
+        .toolbar {
+          display: none !important;
+        }
+
+        .page {
+          max-width: none;
+          padding: 0;
+          margin: 0;
+        }
+
+        .sheet {
+          border: none;
+          border-radius: 0;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="page">
+      <div class="toolbar">
+        <a href={`/actas/${actaId}`} class="btn">Volver</a>
+        <button type="button" class="btn" id="printBtn">Imprimir / Guardar PDF</button>
+      </div>
+
+      {
+        loadError ? (
+          <div class="sheet">
+            <div class="hero">VISTA PREVIA PDF</div>
+            <p class="muted">No fue posible cargar el acta.</p>
+            <div class="section-title">Error</div>
+            <table class="grid-table">
+              <tbody>
+                <tr>
+                  <td>{loadError}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : !acta ? (
+          <div class="sheet">
+            <div class="hero">VISTA PREVIA PDF</div>
+            <p class="muted">No hay datos disponibles para esta acta.</p>
+          </div>
+        ) : (
+          <div class="sheet">
+            <div class="hero">ACTA DE ENTREGA</div>
+
+            <div class="section-title">1. Datos de Contacto y Partes</div>
+            <div class="two-cols">
+              <table class="grid-table">
+                <thead>
+                  <tr>
+                    <th style="width: 34%;">Etiqueta</th>
+                    <th>Datos Prestador</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><b>Nombre:</b></td><td>Martin Yepes</td></tr>
+                  <tr><td><b>NIT/Cédula:</b></td><td>110676803-1</td></tr>
+                  <tr><td><b>Dirección:</b></td><td>Carrera 26M # 72D-27</td></tr>
+                  <tr><td><b>Celular:</b></td><td>3146617754</td></tr>
+                  <tr><td><b>Correo:</b></td><td>martryxxx@gmail.com</td></tr>
+                </tbody>
+              </table>
+
+              <table class="grid-table">
+                <thead>
+                  <tr>
+                    <th style="width: 34%;">Etiqueta</th>
+                    <th>Datos Cliente</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><b>Nombre:</b></td><td>{acta.cliente?.nombre || "—"}</td></tr>
+                  <tr><td><b>NIT/Cédula:</b></td><td>{acta.cliente?.documento || parsed.documento || "—"}</td></tr>
+                  <tr><td><b>Dirección:</b></td><td>{acta.lugar || acta.cliente?.ciudad || "—"}</td></tr>
+                  <tr><td><b>Celular:</b></td><td>{acta.cliente?.telefono || "—"}</td></tr>
+                  <tr><td><b>Correo:</b></td><td>{acta.cliente?.email || "—"}</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="section-title">2. Descripción de Activos / Elementos Entregados</div>
+            {
+              parsed.items.length > 0 ? (
+                <table class="grid-table">
+                  <thead>
+                    <tr>
+                      <th>Ítem</th>
+                      <th class="narrow-center">Cantidad</th>
+                      <th>Serial</th>
+                      <th>Observación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsed.items.map((item) => (
+                      <tr>
+                        <td>{item.nombre || "—"}</td>
+                        <td class="narrow-center">{item.cantidad || "1"}</td>
+                        <td>{item.serial || "—"}</td>
+                        <td>{item.observacion || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <table class="grid-table">
+                  <tbody>
+                    <tr><td>No hay elementos registrados.</td></tr>
+                  </tbody>
+                </table>
+              )
+            }
+
+            <div class="section-title">3. Información General</div>
+            <table class="grid-table">
+              <tbody>
+                <tr>
+                  <td><b>Número:</b> {acta.numero || "—"}</td>
+                  <td><b>Fecha:</b> {acta.fecha || "—"}</td>
+                </tr>
+                <tr>
+                  <td><b>Estado:</b> {acta.status || "borrador"}</td>
+                  <td><b>Lugar:</b> {acta.lugar || "—"}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-title">4. Observaciones</div>
+            <table class="obs-box">
+              <thead>
+                <tr>
+                  <th style="width: 28%;">Campo</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>Observaciones Generales</b></td>
+                  <td>{parsed.notas || "Sin observaciones adicionales."}</td>
+                </tr>
+                <tr>
+                  <td><b>Técnico</b></td>
+                  <td>{parsed.tecnico || "—"}</td>
+                </tr>
+                <tr>
+                  <td><b>Recibe</b></td>
+                  <td>{parsed.recibe || "—"}</td>
+                </tr>
+                <tr>
+                  <td><b>Documento</b></td>
+                  <td>{parsed.documento || "—"}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-title">5. Firmas</div>
+            <div class="firma-grid">
+              <div class="firma-col">
+                <div class="firma-head">Firma del Prestador del Servicio</div>
+                <div class="firma-box">
+                  <span style="font-size: 20px; font-weight: 700;">Martin H. Yepes B.</span>
+                </div>
+              </div>
+
+              <div class="firma-col">
+                <div class="firma-head">Firma del Cliente</div>
+                <div class="firma-box">
+                  {
+                    tieneFirma ? (
+                      <img src={firma} alt="Firma del cliente" />
+                    ) : (
+                      <div class="empty-firma">Esta acta no tiene firma registrada.</div>
+                    )
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div>
+
+    <script>
+      const printBtn = document.getElementById("printBtn");
+      printBtn?.addEventListener("click", () => {
+        window.print();
+      });
+    </script>
+  </body>
+</html>

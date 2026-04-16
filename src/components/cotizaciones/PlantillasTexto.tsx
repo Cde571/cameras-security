@@ -1,142 +1,198 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Save, Trash2, Search } from "lucide-react";
-import { createPlantilla, deletePlantilla, listPlantillas, updatePlantilla } from "../../lib/repositories/cotizacionRepo";
+import React, { useEffect, useMemo, useState } from "react";
+import { Save, Trash2, FileText } from "lucide-react";
+import { deletePlantilla, listPlantillas, updatePlantilla } from "../../lib/repositories/cotizacionRepo";
 
-type Edit = { id: string; nombre: string; cuerpo: string; activo: boolean };
+type Plantilla = {
+  id: string;
+  nombre: string;
+  cuerpo?: string;
+  activo?: boolean;
+};
 
 export default function PlantillasTexto() {
-  const [q, setQ] = useState("");
+  const [list, setList] = useState<Plantilla[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [edit, setEdit] = useState<Plantilla | null>(null);
   const [refresh, setRefresh] = useState(0);
 
-  const list = useMemo(() => listPlantillas(q), [q, refresh]);
-
-  const [edit, setEdit] = useState<Edit | null>(null);
-
   useEffect(() => {
-    const base = listPlantillas("");
-    setRefresh(n => n + 1);
-    if (base[0]) setEdit({ id: base[0].id, nombre: base[0].nombre, cuerpo: base[0].cuerpo, activo: base[0].activo });
-  }, []);
+    let cancelled = false;
+
+    async function loadPlantillas() {
+      try {
+        setLoading(true);
+        const data = await listPlantillas("");
+
+        if (!cancelled) {
+          const arr = Array.isArray(data) ? data : [];
+          setList(arr);
+          if (!edit && arr[0]) {
+            setEdit(arr[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando plantillas:", error);
+        if (!cancelled) setList([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadPlantillas();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+
+  const selectedId = useMemo(() => edit?.id ?? "", [edit]);
 
   const pick = (id: string) => {
-    const t = list.find(x => x.id === id) || listPlantillas("").find(x => x.id === id);
-    if (!t) return;
-    setEdit({ id: t.id, nombre: t.nombre, cuerpo: t.cuerpo, activo: t.activo });
+    const tpl = list.find((x) => x.id === id) || null;
+    setEdit(tpl ? { ...tpl } : null);
   };
 
-  const newTpl = () => {
-    const t = createPlantilla({ nombre: "Nueva plantilla", cuerpo: "", activo: true });
-    setRefresh(n => n + 1);
-    setEdit({ id: t.id, nombre: t.nombre, cuerpo: t.cuerpo, activo: t.activo });
+  const onChange = (key: string, value: any) => {
+    setEdit((prev) => prev ? { ...prev, [key]: value } : prev);
   };
 
-  const save = () => {
-    if (!edit) return;
-    if (edit.nombre.trim().length < 3) return alert("Nombre mínimo 3 caracteres.");
-    updatePlantilla(edit.id, { nombre: edit.nombre, cuerpo: edit.cuerpo, activo: edit.activo });
-    setRefresh(n => n + 1);
-    alert("Plantilla guardada.");
+  const onSave = async () => {
+    if (!edit?.id) return;
+
+    try {
+      setSaving(true);
+      const saved = await updatePlantilla(edit.id, {
+        nombre: edit.nombre,
+        cuerpo: edit.cuerpo,
+        activo: edit.activo ?? true,
+      });
+
+      setEdit(saved);
+      setRefresh((n) => n + 1);
+      alert("Plantilla guardada correctamente.");
+    } catch (error) {
+      console.error("Error guardando plantilla:", error);
+      alert("No fue posible guardar la plantilla.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const del = () => {
-    if (!edit) return;
+  const onDelete = async () => {
+    if (!edit?.id) return;
+
     const ok = confirm("¿Eliminar esta plantilla?");
     if (!ok) return;
-    deletePlantilla(edit.id);
-    setEdit(null);
-    setRefresh(n => n + 1);
+
+    try {
+      await deletePlantilla(edit.id);
+      setEdit(null);
+      setRefresh((n) => n + 1);
+    } catch (error) {
+      console.error("Error eliminando plantilla:", error);
+      alert("No fue posible eliminar la plantilla.");
+    }
   };
 
   return (
     <div className="space-y-5">
-      <header className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Plantillas de texto</h1>
-          <p className="text-sm text-gray-500">Condiciones predefinidas para cotizaciones.</p>
-        </div>
-        <div className="flex gap-2">
-          <a className="rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50" href="/cotizaciones">
-            Volver
-          </a>
-          <button onClick={newTpl} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-            <Plus className="h-4 w-4" /> Nueva
-          </button>
-        </div>
+      <header>
+        <h1 className="text-2xl font-semibold text-gray-900">Plantillas de texto</h1>
+        <p className="text-sm text-gray-500">Administra textos base para condiciones comerciales.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <aside className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-            <Search className="h-4 w-4 text-gray-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar..."
-              className="w-full bg-transparent outline-none text-sm"
-            />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <aside className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-4 py-3">
+            <p className="text-sm font-semibold text-gray-800">Plantillas activas</p>
           </div>
 
-          <div className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200">
-            {list.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => pick(t.id)}
-                className={`w-full px-4 py-3 text-left hover:bg-gray-50 ${edit?.id === t.id ? "bg-blue-50" : "bg-white"}`}
-              >
-                <div className="font-semibold text-gray-900 text-sm">{t.nombre}</div>
-                <div className="text-xs text-gray-500">{t.activo ? "Activa" : "Inactiva"}</div>
-              </button>
-            ))}
-          </div>
+          {loading ? (
+            <div className="p-6 text-sm text-gray-600">Cargando plantillas...</div>
+          ) : list.length === 0 ? (
+            <div className="p-6 text-sm text-gray-600">No hay plantillas disponibles.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {list.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => pick(t.id)}
+                  className={`w-full px-4 py-3 text-left hover:bg-gray-50 ${
+                    selectedId === t.id ? "bg-blue-50" : "bg-white"
+                  }`}
+                >
+                  <div className="font-semibold text-gray-900 text-sm">{t.nombre}</div>
+                  <div className="text-xs text-gray-500">{t.activo ? "Activa" : "Inactiva"}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </aside>
 
-        <section className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
           {!edit ? (
-            <p className="text-sm text-gray-600">Selecciona una plantilla o crea una nueva.</p>
+            <div className="flex min-h-[320px] flex-col items-center justify-center text-center text-gray-500">
+              <FileText className="h-10 w-10 text-gray-300" />
+              <p className="mt-3">Selecciona una plantilla para editarla.</p>
+            </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Nombre</label>
-                  <input
-                    value={edit.nombre}
-                    onChange={(e) => setEdit({ ...edit, nombre: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Estado</label>
-                  <select
-                    value={edit.activo ? "1" : "0"}
-                    onChange={(e) => setEdit({ ...edit, activo: e.target.value === "1" })}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="1">Activa</option>
-                    <option value="0">Inactiva</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-600">Cuerpo</label>
-                <textarea
-                  value={edit.cuerpo}
-                  onChange={(e) => setEdit({ ...edit, cuerpo: e.target.value })}
-                  className="min-h-[320px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-600">Nombre</label>
+                <input
+                  value={edit.nombre || ""}
+                  onChange={(e) => onChange("nombre", e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
-                <button onClick={del} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
-                  <Trash2 className="h-4 w-4 text-red-600" /> Eliminar
-                </button>
-                <button onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                  <Save className="h-4 w-4" /> Guardar
-                </button>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-600">Contenido</label>
+                <textarea
+                  value={edit.cuerpo || ""}
+                  onChange={(e) => onChange("cuerpo", e.target.value)}
+                  className="min-h-[260px] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
               </div>
-            </>
+
+              <div className="flex items-center justify-between gap-3">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={edit.activo !== false}
+                    onChange={(e) => onChange("activo", e.target.checked)}
+                  />
+                  Activa
+                </label>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onSave}
+                    disabled={saving}
+                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-white ${
+                      saving ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    <Save className="h-4 w-4" />
+                    {saving ? "Guardando..." : "Guardar"}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </section>
       </div>
     </div>
   );
 }
-

@@ -1,148 +1,205 @@
-﻿/** API-first service with LocalService fallback. */
-type FetchOpts = RequestInit & { json?: any };
+import * as Local from "./cotizacionLocalService";
 
-async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(opts.headers as any),
-  };
+type Cotizacion = any;
+type Plantilla = any;
 
-  const init: RequestInit = {
+function hasWindow() {
+  return typeof window !== "undefined";
+}
+
+async function apiFetch<T>(url: string, opts: RequestInit = {}): Promise<T> {
+  const res = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(opts.headers ?? {}),
+    },
     ...opts,
-    headers,
-    body: opts.json !== undefined ? JSON.stringify(opts.json) : opts.body,
-  };
+  });
 
-  const res = await fetch(url, init);
   const text = await res.text();
-
   let data: any = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
 
   if (!res.ok) {
-    throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+    throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
   }
 
   return data as T;
 }
 
-const hasWindow = () => typeof window !== "undefined";
+function normalizeCotizacion(raw: any) {
+  if (!raw) return null;
 
-import * as Local from "./cotizacionLocalService";
-export type Cotizacion = Local.Cotizacion;
-export type CotizacionItem = Local.CotizacionItem;
-export type CotizacionStatus = Local.CotizacionStatus;
-export type CotizacionItemKind = Local.CotizacionItemKind;
-export type PlantillaTexto = Local.PlantillaTexto;
+  return {
+    ...raw,
+    cliente: raw?.cliente ?? (raw?.clienteNombre ? { nombre: raw.clienteNombre } : null),
+    vigenciaDias: raw?.vigenciaDias ?? raw?.vigencia_dias ?? 30,
+    createdAt: raw?.createdAt ?? raw?.created_at ?? null,
+    updatedAt: raw?.updatedAt ?? raw?.updated_at ?? null,
+  };
+}
 
-const API = "/api/cotizaciones";
-const API_TPL = "/api/cotizaciones/plantillas";
+export async function listCotizaciones(search = ""): Promise<Cotizacion[]> {
+  if (!hasWindow()) return [];
 
-export async function listCotizaciones(search = "") {
-  if (!hasWindow()) return [] as Local.Cotizacion[];
   try {
     const q = search ? `?q=${encodeURIComponent(search)}` : "";
-    return await apiFetch<Local.Cotizacion[]>(`${API}${q}`);
-  } catch {
-    return Local.listCotizaciones(search);
+    const data = await apiFetch<any>(`/api/cotizaciones${q}`);
+
+    let items: Cotizacion[] = [];
+    if (Array.isArray(data)) items = data;
+    else if (Array.isArray(data?.items)) items = data.items;
+    else if (Array.isArray(data?.list)) items = data.list;
+
+    return items.map(normalizeCotizacion).filter(Boolean);
+  } catch (error) {
+    console.warn("[cotizacionService] fallback listCotizaciones:", error);
+
+    const localItems =
+      typeof (Local as any).listCotizaciones === "function"
+        ? (Local as any).listCotizaciones(search)
+        : [];
+
+    return (Array.isArray(localItems) ? localItems : []).map(normalizeCotizacion).filter(Boolean);
   }
 }
 
-export async function getCotizacion(id: string) {
-  if (!hasWindow()) return null as Local.Cotizacion | null;
+export async function getCotizacion(id: string): Promise<Cotizacion | null> {
+  if (!hasWindow()) return null;
+
   try {
-    return await apiFetch<Local.Cotizacion>(`${API}/${encodeURIComponent(id)}`);
-  } catch {
-    return Local.getCotizacion(id);
+    const data = await apiFetch<any>(`/api/cotizaciones/${encodeURIComponent(id)}`);
+    if (!data) return null;
+    if (data?.item) return normalizeCotizacion(data.item);
+    return normalizeCotizacion(data);
+  } catch (error) {
+    console.warn("[cotizacionService] fallback getCotizacion:", error);
+
+    return typeof (Local as any).getCotizacion === "function"
+      ? normalizeCotizacion((Local as any).getCotizacion(id))
+      : null;
   }
 }
 
-export async function createCotizacion(data: Omit<Local.Cotizacion, "id" | "numero" | "version" | "createdAt" | "updatedAt">) {
+export async function createCotizacion(data: any): Promise<Cotizacion> {
   if (!hasWindow()) throw new Error("createCotizacion solo en browser");
-  try {
-    return await apiFetch<Local.Cotizacion>(API, { method: "POST", json: data });
-  } catch {
-    return Local.createCotizacion(data as any);
-  }
-}
 
-export async function updateCotizacion(id: string, patch: Partial<Local.Cotizacion>) {
-  if (!hasWindow()) throw new Error("updateCotizacion solo en browser");
   try {
-    return await apiFetch<Local.Cotizacion>(`${API}/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      json: patch,
-    });
-  } catch {
-    return Local.updateCotizacion(id, patch as any);
-  }
-}
-
-export async function deleteCotizacion(id: string) {
-  if (!hasWindow()) throw new Error("deleteCotizacion solo en browser");
-  try {
-    await apiFetch(`${API}/${encodeURIComponent(id)}`, { method: "DELETE" });
-  } catch {
-    Local.deleteCotizacion(id);
-  }
-}
-
-export async function createVersionFrom(id: string) {
-  if (!hasWindow()) throw new Error("createVersionFrom solo en browser");
-  try {
-    return await apiFetch<Local.Cotizacion>(`${API}/${encodeURIComponent(id)}/versionar`, {
+    const result = await apiFetch<any>("/api/cotizaciones", {
       method: "POST",
+      body: JSON.stringify(data),
     });
-  } catch {
-    return Local.createVersionFrom(id);
+
+    return normalizeCotizacion(result?.item ?? result);
+  } catch (error) {
+    console.warn("[cotizacionService] fallback createCotizacion:", error);
+
+    return typeof (Local as any).createCotizacion === "function"
+      ? normalizeCotizacion((Local as any).createCotizacion(data))
+      : data;
   }
 }
 
-export async function listPlantillas(search = "") {
-  if (!hasWindow()) return [] as Local.PlantillaTexto[];
+export async function updateCotizacion(id: string, patch: any): Promise<Cotizacion> {
+  if (!hasWindow()) throw new Error("updateCotizacion solo en browser");
+
+  try {
+    const result = await apiFetch<any>(`/api/cotizaciones/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+
+    return normalizeCotizacion(result?.item ?? result);
+  } catch (error) {
+    console.warn("[cotizacionService] fallback updateCotizacion:", error);
+
+    return typeof (Local as any).updateCotizacion === "function"
+      ? normalizeCotizacion((Local as any).updateCotizacion(id, patch))
+      : patch;
+  }
+}
+
+export async function deleteCotizacion(id: string): Promise<void> {
+  if (!hasWindow()) throw new Error("deleteCotizacion solo en browser");
+
+  try {
+    await apiFetch(`/api/cotizaciones/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    console.warn("[cotizacionService] fallback deleteCotizacion:", error);
+
+    if (typeof (Local as any).deleteCotizacion === "function") {
+      (Local as any).deleteCotizacion(id);
+    }
+  }
+}
+
+export async function listPlantillas(search = ""): Promise<Plantilla[]> {
+  if (!hasWindow()) return [];
+
   try {
     const q = search ? `?q=${encodeURIComponent(search)}` : "";
-    return await apiFetch<Local.PlantillaTexto[]>(`${API_TPL}${q}`);
-  } catch {
-    return Local.listPlantillas(search);
+    const data = await apiFetch<any>(`/api/cotizaciones/plantillas${q}`);
+
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+    return [];
+  } catch (error) {
+    console.warn("[cotizacionService] fallback listPlantillas:", error);
+
+    if (typeof (Local as any).listPlantillas === "function") {
+      return (Local as any).listPlantillas(search);
+    }
+
+    return [];
   }
 }
 
-export async function getPlantilla(id: string) {
-  if (!hasWindow()) return null as Local.PlantillaTexto | null;
-  try {
-    return await apiFetch<Local.PlantillaTexto>(`${API_TPL}/${encodeURIComponent(id)}`);
-  } catch {
-    return Local.getPlantilla(id);
-  }
-}
-
-export async function createPlantilla(data: Pick<Local.PlantillaTexto, "nombre" | "cuerpo" | "activo">) {
-  if (!hasWindow()) throw new Error("createPlantilla solo en browser");
-  try {
-    return await apiFetch<Local.PlantillaTexto>(API_TPL, { method: "POST", json: data });
-  } catch {
-    return Local.createPlantilla(data as any);
-  }
-}
-
-export async function updatePlantilla(id: string, patch: Partial<Local.PlantillaTexto>) {
+export async function updatePlantilla(id: string, patch: any): Promise<Plantilla> {
   if (!hasWindow()) throw new Error("updatePlantilla solo en browser");
-  try {
-    return await apiFetch<Local.PlantillaTexto>(`${API_TPL}/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      json: patch,
-    });
-  } catch {
-    return Local.updatePlantilla(id, patch as any);
-  }
+
+  const result = await apiFetch<any>(`/api/cotizaciones/plantillas/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+
+  return result?.item ?? result;
 }
 
-export async function deletePlantilla(id: string) {
+export async function deletePlantilla(id: string): Promise<void> {
   if (!hasWindow()) throw new Error("deletePlantilla solo en browser");
-  try {
-    await apiFetch(`${API_TPL}/${encodeURIComponent(id)}`, { method: "DELETE" });
-  } catch {
-    Local.deletePlantilla(id);
-  }
+
+  await apiFetch(`/api/cotizaciones/plantillas/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }
+
+export const listQuotations = listCotizaciones;
+export const getQuotation = getCotizacion;
+export const createQuotation = createCotizacion;
+export const updateQuotation = updateCotizacion;
+export const deleteQuotation = deleteCotizacion;
+export const getTemplates = listPlantillas;
+
+export const cotizacionService = {
+  listCotizaciones,
+  listQuotations,
+  getCotizacion,
+  getQuotation,
+  createCotizacion,
+  createQuotation,
+  updateCotizacion,
+  updateQuotation,
+  deleteCotizacion,
+  deleteQuotation,
+  listPlantillas,
+  getTemplates,
+  updatePlantilla,
+  deletePlantilla,
+};

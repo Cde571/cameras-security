@@ -1,105 +1,92 @@
 import crypto from "node:crypto";
 
-export type UserRole = "admin" | "tecnico" | "ventas";
+const COOKIE_NAME = "session";
+const MAX_AGE_SECONDS = 60 * 60 * 12; // 12 horas
 
-export type SessionUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-};
-
-type SessionPayload = SessionUser & {
-  exp: number;
-};
-
-export const SESSION_COOKIE_NAME = "session";
-
-function getSessionSecret(): string {
-  const secret = process.env.SESSION_SECRET?.trim() || "";
+function getSecret() {
+  const secret = import.meta.env.SESSION_SECRET;
   if (!secret) {
-    throw new Error("SESSION_SECRET no está configurada.");
+    throw new Error("Falta SESSION_SECRET en el .env");
   }
   return secret;
 }
 
-function toBase64Url(input: string | Buffer) {
-  return Buffer.from(input).toString("base64url");
+function sign(value: string) {
+  return crypto
+    .createHmac("sha256", getSecret())
+    .update(value)
+    .digest("hex");
 }
 
-function fromBase64Url(input: string) {
-  return Buffer.from(input, "base64url").toString("utf8");
-}
+export type SessionUser = {
+  id: string;
+  nombre: string;
+  email: string;
+  role: string;
+};
 
-function signRaw(raw: string) {
-  return crypto.createHmac("sha256", getSessionSecret()).update(raw).digest("base64url");
-}
-
-export function signSessionCookie(user: SessionUser, maxAgeSeconds = 60 * 60 * 24 * 7) {
-  const payload: SessionPayload = {
+export function createSessionToken(user: SessionUser) {
+  const payload = {
     ...user,
-    exp: Math.floor(Date.now() / 1000) + maxAgeSeconds,
+    exp: Date.now() + MAX_AGE_SECONDS * 1000,
   };
 
-  const raw = toBase64Url(JSON.stringify(payload));
-  const signature = signRaw(raw);
-
-  return `${raw}.${signature}`;
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = sign(encoded);
+  return `${encoded}.${signature}`;
 }
 
-export function verifySessionCookie(token?: string | null): SessionUser | null {
+export function readSessionToken(token?: string | null): SessionUser | null {
+  if (!token) return null;
+
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+
+  const [encoded, signature] = parts;
+  const expected = sign(encoded);
+
+  if (signature !== expected) return null;
+
   try {
-    if (!token) return null;
-
-    const [raw, signature] = token.split(".");
-    if (!raw || !signature) return null;
-
-    const expected = signRaw(raw);
-    if (signature.length !== expected.length) return null;
-
-    const a = Buffer.from(signature);
-    const b = Buffer.from(expected);
-
-    if (!crypto.timingSafeEqual(a, b)) return null;
-
-    const payload = JSON.parse(fromBase64Url(raw)) as SessionPayload;
-    if (!payload?.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+    if (!payload?.exp || Date.now() > Number(payload.exp)) return null;
 
     return {
-      id: payload.id,
-      name: payload.name,
-      email: payload.email,
-      role: payload.role,
+      id: String(payload.id ?? ""),
+      nombre: String(payload.nombre ?? ""),
+      email: String(payload.email ?? ""),
+      role: String(payload.role ?? "ventas"),
     };
   } catch {
     return null;
   }
 }
 
-export function hashPassword(password: string) {
-  const iterations = 100000;
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.pbkdf2Sync(password, salt, iterations, 32, "sha256").toString("hex");
-  return `pbkdf2$${iterations}$${salt}$${hash}`;
+export function setSessionCookie(headers: Headers, user: SessionUser) {
+  const token = createSessionToken(user);
+  const secure = import.meta.env.NODE_ENV === "production";
+
+  headers.append(
+    "Set-Cookie",
+    `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE_SECONDS}${secure ? "; Secure" : ""}`
+  );
 }
 
-export function verifyPassword(password: string, stored: string) {
-  if (!stored) return false;
+export function clearSessionCookie(headers: Headers) {
+  const secure = import.meta.env.NODE_ENV === "production";
 
-  if (!stored.startsWith("pbkdf2$")) {
-    return stored === password;
-  }
-
-  const [scheme, iterationsRaw, salt, hash] = stored.split("$");
-  if (scheme !== "pbkdf2" || !iterationsRaw || !salt || !hash) return false;
-
-  const iterations = Number(iterationsRaw);
-  if (!Number.isFinite(iterations)) return false;
-
-  const candidate = crypto.pbkdf2Sync(password, salt, iterations, 32, "sha256").toString("hex");
-  const a = Buffer.from(candidate);
-  const b = Buffer.from(hash);
-
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  headers.append(
+    "Set-Cookie",
+    `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`
+  );
 }
+
+export function getSessionFromRequest(request: Request): SessionUser | null {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const pairs = cookieHeader.split(";").map((x) => x.trim());
+  const raw = pairs.find((x) => x.startsWith(`${COOKIE_NAME}=`));
+  const token = raw ? raw.substring(`${COOKIE_NAME}=`.length) : null;
+  return readSessionToken(token);
+}
+
+export const sessionCookieName = COOKIE_NAME;

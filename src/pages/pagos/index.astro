@@ -1,34 +1,8 @@
-﻿---
+---
 import MainLayout from "../../layouts/MainLayout.astro";
 import CarteraTable from "../../components/pagos/CarteraTable";
 ---
 
-<MainLayout title="Pagos y cartera">
-  <section class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold text-slate-900">Pagos y cartera</h1>
-      <p class="text-sm text-slate-600">Resumen general del módulo de pagos.</p>
-    </div>
-
-    <div class="grid gap-4 md:grid-cols-3">
-      <a href="/pagos/registrar" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-300">
-        <h2 class="font-semibold text-slate-900">Registrar pago</h2>
-        <p class="mt-1 text-sm text-slate-600">Crear un nuevo abono o pago recibido.</p>
-      </a>
-
-      <a href="/pagos/cartera" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-300">
-        <h2 class="font-semibold text-slate-900">Ver cartera</h2>
-        <p class="mt-1 text-sm text-slate-600">Consultar saldos pendientes y estado de cuenta.</p>
-      </a>
-
-      <a href="/reportes" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-300">
-        <h2 class="font-semibold text-slate-900">Ir a reportes</h2>
-        <p class="mt-1 text-sm text-slate-600">Revisar métricas comerciales y financieras.</p>
-      </a>
-    </div>
-
-    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <CarteraTable client:load />
-    </div>
-  </section>
+<MainLayout>
+  <CarteraTable client:load />
 </MainLayout>

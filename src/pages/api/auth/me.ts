@@ -1,42 +1,18 @@
-﻿import type { APIRoute } from "astro";
-import { SESSION_COOKIE_NAME, verifySessionCookie } from "../../../lib/auth/session";
-import { getUserById } from "../../../lib/server/authUsers";
+import type { APIRoute } from "astro";
+import { getSessionFromRequest } from "../../../lib/auth/session";
 
-export const GET: APIRoute = async ({ cookies }) => {
-  try {
-    const token = cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
-    const sessionUser = verifySessionCookie(token);
+export const GET: APIRoute = async ({ request }) => {
+  const session = getSessionFromRequest(request);
 
-    if (!sessionUser) {
-      return new Response(JSON.stringify({ ok: false, user: null }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const dbUser = await getUserById(sessionUser.id);
-
-    if (!dbUser) {
-      return new Response(JSON.stringify({ ok: false, user: null }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ ok: true, user: dbUser }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error: any) {
+  if (!session) {
     return new Response(
-      JSON.stringify({
-        ok: false,
-        error: error?.message || "No fue posible obtener la sesión",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      JSON.stringify({ ok: false, user: null }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
     );
   }
+
+  return new Response(
+    JSON.stringify({ ok: true, user: session }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
 };

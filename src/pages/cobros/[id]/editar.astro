@@ -1,0 +1,10 @@
+---
+import MainLayout from "../../../layouts/MainLayout.astro";
+import CuentaForm from "../../../components/cobros/CuentaForm";
+
+const cobroId = Astro.params.id ?? "";
+---
+
+<MainLayout>
+  <CuentaForm mode="edit" cobroId={cobroId} client:load />
+</MainLayout>

@@ -1,12 +1,286 @@
-﻿---
-export const prerender = false;
+---
+import { getSqlClient } from "../../../lib/db/client";
 
-import PrintLayout from "../../../layouts/PrintLayout.astro";
-import PDFPreview from "../../../components/cobros/PDFPreview";
+const cobroId = Astro.params.id ?? "";
+const sql = getSqlClient();
 
-const { id } = Astro.params;
+let cuenta = null;
+let loadError = "";
+
+function money(value) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+}
+
+try {
+  if (cobroId) {
+    const rows = await sql`
+      SELECT
+        cc.id::text AS id,
+        cc.numero,
+        cc.cliente_id::text AS "clienteId",
+        json_build_object(
+          'id', c.id::text,
+          'nombre', c.nombre,
+          'documento', c.documento,
+          'telefono', c.telefono,
+          'email', c.email,
+          'ciudad', c.ciudad
+        ) AS cliente,
+        cc.fecha_emision::text AS "fechaEmision",
+        cc.fecha_vencimiento::text AS "fechaVencimiento",
+        cc.status,
+        cc.subtotal,
+        cc.iva,
+        cc.total,
+        cc.observaciones,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', i.id::text,
+                'descripcion', i.descripcion,
+                'cantidad', i.cantidad,
+                'valorUnitario', i.valor_unitario,
+                'subtotal', i.subtotal
+              )
+              ORDER BY i.created_at ASC
+            )
+            FROM cuenta_cobro_items i
+            WHERE i.cuenta_cobro_id = cc.id
+          ),
+          '[]'::json
+        ) AS items
+      FROM cuentas_cobro cc
+      LEFT JOIN clientes c ON c.id = cc.cliente_id
+      WHERE cc.id = ${cobroId}::uuid
+      LIMIT 1
+    `;
+    cuenta = rows[0] ?? null;
+  }
+} catch (error) {
+  loadError = error?.message || "No fue posible cargar la cuenta de cobro";
+}
 ---
 
-<PrintLayout title={`PDF Cobro ${id}`}>
-  <PDFPreview client:load cobroId={id!} />
-</PrintLayout>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>{cuenta?.numero ? `Cuenta ${cuenta.numero}` : "Vista previa PDF"}</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f3f4f6;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #111827;
+      }
+
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 28px 18px 48px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .btn {
+        border: 1px solid #cfd5dc;
+        background: white;
+        padding: 12px 18px;
+        border-radius: 14px;
+        text-decoration: none;
+        color: #111827;
+        cursor: pointer;
+      }
+
+      .sheet {
+        background: white;
+        border-radius: 22px;
+        border: 1px solid #d6d9de;
+        padding: 24px;
+      }
+
+      .hero {
+        border: 2px solid #111827;
+        background: #dbeafe;
+        text-align: center;
+        font-weight: 800;
+        font-size: 28px;
+        padding: 10px 12px;
+        margin-bottom: 18px;
+      }
+
+      .section-title {
+        background: #e5e7eb;
+        font-size: 16px;
+        font-weight: 700;
+        padding: 8px 10px;
+        margin: 18px 0 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border: 1px solid #111827;
+        padding: 8px 10px;
+        font-size: 14px;
+        vertical-align: top;
+      }
+
+      th {
+        background: #dbeafe;
+      }
+
+      @media print {
+        body {
+          background: white;
+        }
+
+        .toolbar {
+          display: none !important;
+        }
+
+        .page {
+          max-width: none;
+          padding: 0;
+        }
+
+        .sheet {
+          border: none;
+          border-radius: 0;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="page">
+      <div class="toolbar">
+        <a href={`/cobros/${cobroId}`} class="btn">Volver</a>
+        <button type="button" class="btn" id="printBtn">Imprimir / Guardar PDF</button>
+      </div>
+
+      {
+        loadError ? (
+          <div class="sheet">
+            <div class="hero">VISTA PREVIA PDF</div>
+            <p>No fue posible cargar la cuenta.</p>
+            <p>{loadError}</p>
+          </div>
+        ) : !cuenta ? (
+          <div class="sheet">
+            <div class="hero">VISTA PREVIA PDF</div>
+            <p>No hay datos disponibles para esta cuenta de cobro.</p>
+          </div>
+        ) : (
+          <div class="sheet">
+            <div class="hero">CUENTA DE COBRO</div>
+
+            <div class="section-title">1. Datos generales</div>
+            <table>
+              <tbody>
+                <tr>
+                  <td><b>Número</b></td>
+                  <td>{cuenta.numero || "—"}</td>
+                  <td><b>Estado</b></td>
+                  <td>{cuenta.status || "pendiente"}</td>
+                </tr>
+                <tr>
+                  <td><b>Emisión</b></td>
+                  <td>{cuenta.fechaEmision || "—"}</td>
+                  <td><b>Vencimiento</b></td>
+                  <td>{cuenta.fechaVencimiento || "—"}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-title">2. Cliente</div>
+            <table>
+              <tbody>
+                <tr>
+                  <td><b>Nombre</b></td>
+                  <td>{cuenta.cliente?.nombre || "—"}</td>
+                  <td><b>Documento</b></td>
+                  <td>{cuenta.cliente?.documento || "—"}</td>
+                </tr>
+                <tr>
+                  <td><b>Teléfono</b></td>
+                  <td>{cuenta.cliente?.telefono || "—"}</td>
+                  <td><b>Correo</b></td>
+                  <td>{cuenta.cliente?.email || "—"}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-title">3. Servicios</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Cantidad</th>
+                  <th>Valor unitario</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Array.isArray(cuenta.items) ? cuenta.items : []).map((item) => (
+                  <tr>
+                    <td>{item.descripcion || "—"}</td>
+                    <td>{item.cantidad || 0}</td>
+                    <td>{money(item.valorUnitario || 0)}</td>
+                    <td>{money(item.subtotal || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div class="section-title">4. Totales</div>
+            <table>
+              <tbody>
+                <tr>
+                  <td><b>Subtotal</b></td>
+                  <td>{money(cuenta.subtotal || 0)}</td>
+                </tr>
+                <tr>
+                  <td><b>IVA</b></td>
+                  <td>{money(cuenta.iva || 0)}</td>
+                </tr>
+                <tr>
+                  <td><b>Total</b></td>
+                  <td>{money(cuenta.total || 0)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-title">5. Observaciones</div>
+            <table>
+              <tbody>
+                <tr>
+                  <td>{cuenta.observaciones || "Sin observaciones."}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+    </div>
+
+    <script>
+      document.getElementById("printBtn")?.addEventListener("click", () => {
+        window.print();
+      });
+    </script>
+  </body>
+</html>

@@ -1,41 +1,8 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
-import DashboardLiveData from "../components/dashboard/DashboardLiveData";
-
-const pageTitle = "Dashboard - Sistema de Cotizaciones";
-const pageDescription =
-  "Panel principal del sistema de gestión de cotizaciones y ventas";
-
-const now = new Date();
-
-const todayLong = new Intl.DateTimeFormat("es-CO", {
-  weekday: "long",
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-}).format(now);
-
-const currentMonth = new Intl.DateTimeFormat("es-CO", {
-  month: "long",
-}).format(now);
+import ConnectedDashboard from "../components/dashboard/ConnectedDashboard";
 ---
 
-<MainLayout title={pageTitle} description={pageDescription}>
-  <section class="mb-8 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 p-8 shadow-lg">
-    <div class="flex items-center justify-between gap-6">
-      <div class="text-white">
-        <h1 class="mb-2 text-3xl font-bold">Bienvenido de nuevo</h1>
-        <p class="text-lg text-blue-100">Hoy es {todayLong}</p>
-      </div>
-
-      <div class="hidden md:block">
-        <div class="rounded-lg bg-white/20 p-4 text-center text-white backdrop-blur-sm">
-          <p class="mb-1 text-sm text-blue-100">Mes actual</p>
-          <p class="text-3xl font-bold">{currentMonth}</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <DashboardLiveData client:load />
+<MainLayout>
+  <ConnectedDashboard client:load />
 </MainLayout>

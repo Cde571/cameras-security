@@ -1,7 +1,15 @@
-﻿---
-import MainLayout from "../../layouts/MainLayout.astro";
-import ReporteClientes from "../../components/reportes/ReporteClientes";
 ---
-<MainLayout title="Clientes - Reportes">
-  <ReporteClientes client:load />
+import MainLayout from "../../layouts/MainLayout.astro";
+import TopClientes from "../../components/reportes/TopClientes";
+---
+
+<MainLayout>
+  <div class="space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold text-gray-900">Reporte de clientes</h1>
+      <p class="text-sm text-gray-500">Clientes con mayor volumen comercial según cotizaciones registradas.</p>
+    </header>
+
+    <TopClientes title="Clientes principales" client:load />
+  </div>
 </MainLayout>

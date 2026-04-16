@@ -1,168 +1,162 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Save, ClipboardList, Image } from "lucide-react";
-import ClienteSelector from "../cotizaciones/ClienteSelector";
-import TecnicoAssign from "./TecnicoAssign";
-import ChecklistEditor from "./ChecklistEditor";
-import {
-  getCliente,
-  getChecklistTemplate,
-  getCotizacion,
-  getOrden,
-  listChecklistTemplates,
-  updateOrden,
-  createOrden,
-  type ChecklistItem,
-  type Cliente,
-  type OrdenStatus,
-  type Tecnico,
-} from "../../lib/flow/data";
-import { getFlowContext, toClienteSnapshot } from "../../lib/flow/context";
+import React, { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Save } from "lucide-react";
+import { createOrden, getOrden, listCheckListTemplates, updateOrden } from "../../lib/repositories/ordenRepo";
 
-type Props = { mode: "create" | "edit"; ordenId?: string };
+type Props = {
+  mode?: "create" | "edit";
+  ordenId?: string;
+};
 
-function uid(prefix: string) {
-  return globalThis.crypto?.randomUUID?.() ?? `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
+type ChecklistItem = {
+  id: string;
+  label: string;
+  checked: boolean;
+};
 
-export default function OrdenForm({ mode, ordenId }: Props) {
+type ChecklistTemplate = {
+  id: string;
+  nombre: string;
+  items: ChecklistItem[];
+};
+
+export default function OrdenForm({ mode = "create", ordenId }: Props) {
   const isEdit = mode === "edit";
-  const [loading, setLoading] = useState(isEdit);
 
-  const [clienteId, setClienteId] = useState("");
-  const [clienteSnap, setClienteSnap] = useState<any>(null);
-  const [cotizacionId, setCotizacionId] = useState("");
-
-  const [fechaCreacion, setFechaCreacion] = useState(() => new Date().toISOString().slice(0, 10));
-  const [fechaProgramada, setFechaProgramada] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [status, setStatus] = useState<OrdenStatus>("pendiente");
-
-  const [asunto, setAsunto] = useState("");
-  const [direccionServicio, setDireccionServicio] = useState("");
-  const [observaciones, setObservaciones] = useState("");
-
-  const [tecnico, setTecnico] = useState<Tecnico | null>(null);
-
-  const templates = useMemo(() => listChecklistTemplates(""), []);
-  const [tplId, setTplId] = useState<string>(templates[0]?.id ?? "");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [tplId, setTplId] = useState("");
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
 
-  useEffect(() => {
-    if (!isEdit || !ordenId) return;
-
-    const o = getOrden(ordenId);
-    if (!o) {
-      setLoading(false);
-      return;
-    }
-
-    setClienteId(o.clienteId);
-    setClienteSnap(o.cliente);
-    setCotizacionId(o.cotizacionId || "");
-
-    setFechaCreacion(o.fechaCreacion);
-    setFechaProgramada(o.fechaProgramada || "");
-    setStatus(o.status);
-
-    setAsunto(o.asunto || "");
-    setDireccionServicio(o.direccionServicio || "");
-    setObservaciones(o.observaciones || "");
-
-    setTecnico(o.tecnico || null);
-    setTplId(o.checklistTemplateId || (templates[0]?.id ?? ""));
-    setChecklist(o.checklist || []);
-
-    setLoading(false);
-  }, [isEdit, ordenId, templates]);
+  const [form, setForm] = useState({
+    numero: "",
+    cotizacionId: "",
+    clienteId: "",
+    fecha: new Date().toISOString().slice(0, 10),
+    fechaProgramada: "",
+    asunto: "",
+    direccionServicio: "",
+    tecnico: "",
+    tecnicoId: "",
+    notas: "",
+    estado: "pendiente",
+  });
 
   useEffect(() => {
-    if (isEdit) return;
+    let cancelled = false;
 
-    const ctx = getFlowContext();
+    async function loadData() {
+      try {
+        setLoading(true);
 
-    if (ctx.cotizacionId) {
-      const cot = getCotizacion(ctx.cotizacionId);
-      if (cot) {
-        setCotizacionId(cot.id);
-        setClienteId(cot.clienteId);
-        setClienteSnap(cot.cliente);
-        setAsunto((prev) => prev || cot.asunto || `Orden derivada de ${cot.numero}`);
-        setDireccionServicio((prev) => prev || cot.cliente?.direccion || "");
-        setObservaciones((prev) => prev || `Generada desde la cotización ${cot.numero}.`);
+        const tplData = await listCheckListTemplates("");
+        if (!cancelled) {
+          const arr = Array.isArray(tplData) ? tplData : [];
+          setTemplates(arr);
+
+          if (arr[0]) {
+            setTplId(arr[0].id);
+            setChecklist(Array.isArray(arr[0].items) ? arr[0].items : []);
+          }
+        }
+
+        if (isEdit && ordenId) {
+          const o = await getOrden(ordenId);
+
+          if (!cancelled && o) {
+            setForm({
+              numero: o.numero || "",
+              cotizacionId: o.cotizacionId || "",
+              clienteId: o.clienteId || "",
+              fecha: o.fecha || new Date().toISOString().slice(0, 10),
+              fechaProgramada: o.fechaProgramada || "",
+              asunto: o.asunto || "",
+              direccionServicio: o.direccionServicio || "",
+              tecnico: o.tecnico || "",
+              tecnicoId: o.tecnicoId || "",
+              notas: o.notas || "",
+              estado: o.estado || o.status || "pendiente",
+            });
+
+            if (Array.isArray(o.checklist) && o.checklist.length > 0) {
+              setChecklist(o.checklist);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando formulario de orden:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
-    if (ctx.clienteId && !clienteId) {
-      const c = getCliente(ctx.clienteId);
-      if (c) {
-        setClienteId(c.id);
-        setClienteSnap(toClienteSnapshot(c));
-        setDireccionServicio((prev) => prev || c.direccion || "");
-      }
-    }
+    loadData();
 
-    if ((checklist || []).length === 0) {
-      const tpl = getChecklistTemplate(tplId);
-      if (tpl) {
-        setChecklist(tpl.items.map((i) => ({ id: uid("chk"), label: i.label, done: false })));
-      }
-    }
-  }, [isEdit, tplId]);
-
-  const canSave = useMemo(() => Boolean(clienteId), [clienteId]);
-
-  const onPickCliente = (c: Cliente) => {
-    setClienteId(c.id);
-    setClienteSnap(toClienteSnapshot(c));
-    setDireccionServicio((prev) => prev || c.direccion || "");
-  };
-
-  const applyTemplate = () => {
-    const tpl = getChecklistTemplate(tplId);
-    if (!tpl) return;
-    setChecklist(tpl.items.map((i) => ({ id: uid("chk"), label: i.label, done: false })));
-  };
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!clienteId) return alert("Selecciona un cliente.");
-
-    if (!clienteSnap) {
-      const c = getCliente(clienteId);
-      if (!c) return alert("Cliente no encontrado.");
-      onPickCliente(c);
-    }
-
-    const payload = {
-      fechaCreacion,
-      fechaProgramada: fechaProgramada || "",
-      status,
-      clienteId,
-      cliente: clienteSnap,
-      cotizacionId: cotizacionId || undefined,
-      asunto,
-      direccionServicio,
-      observaciones,
-      tecnicoId: tecnico?.id || "",
-      tecnico: tecnico || undefined,
-      checklistTemplateId: tplId || "",
-      checklist,
-      evidencias: isEdit && ordenId ? getOrden(ordenId)?.evidencias || [] : [],
+    return () => {
+      cancelled = true;
     };
+  }, [isEdit, ordenId]);
 
-    if (isEdit && ordenId) {
-      updateOrden(ordenId, payload as any);
-      window.location.href = `/ordenes/${ordenId}`;
+  const canSave = useMemo(() => {
+    return form.numero.trim().length > 0;
+  }, [form.numero]);
+
+  const onChange = (key: string, value: any) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const applyTemplate = (id: string) => {
+    setTplId(id);
+    const tpl = templates.find((x) => x.id === id);
+    if (!tpl) return;
+    setChecklist(Array.isArray(tpl.items) ? tpl.items : []);
+  };
+
+  const toggleChecklist = (id: string) => {
+    setChecklist((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, checked: !item.checked } : item
+      )
+    );
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!canSave) {
+      alert("El número de orden es obligatorio.");
       return;
     }
 
-    const nuevo = createOrden(payload as any);
-    window.location.href = `/ordenes/${nuevo.id}`;
+    try {
+      setSaving(true);
+
+      const payload = {
+        ...form,
+        checklist,
+        status: form.estado,
+      };
+
+      if (isEdit && ordenId) {
+        await updateOrden(ordenId, payload);
+        window.location.href = "/ordenes";
+        return;
+      }
+
+      await createOrden(payload);
+      window.location.href = "/ordenes";
+    } catch (error) {
+      console.error("Error guardando orden:", error);
+      alert("No fue posible guardar la orden.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-600">Cargando orden...</p>
+        <p className="text-sm text-gray-600">Cargando formulario...</p>
       </div>
     );
   }
@@ -171,144 +165,190 @@ export default function OrdenForm({ mode, ordenId }: Props) {
     <form onSubmit={onSubmit} className="space-y-5">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">{isEdit ? "Editar orden" : "Nueva orden"}</h1>
-          <p className="text-sm text-gray-500">Cliente + programación + checklist + evidencias.</p>
+          <h1 className="text-2xl font-semibold">
+            {isEdit ? "Editar orden" : "Nueva orden"}
+          </h1>
+          <p className="text-sm text-gray-500">
+            {isEdit ? "Actualiza la información de la orden." : "Crea una orden nueva conectada al backend."}
+          </p>
         </div>
 
         <div className="flex gap-2">
-          <a href="/ordenes" className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
-            <ArrowLeft className="h-4 w-4" /> Volver
+          <a
+            href="/ordenes"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-800 hover:bg-gray-50"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver
           </a>
 
-          <button type="submit" disabled={!canSave}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-white ${canSave ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-300 cursor-not-allowed"}`}
+          <button
+            type="submit"
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-white ${
+              canSave && !saving ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-300 cursor-not-allowed"
+            }`}
+            disabled={!canSave || saving}
           >
-            <Save className="h-4 w-4" /> Guardar
+            <Save className="h-4 w-4" />
+            {saving ? "Guardando..." : "Guardar"}
           </button>
-
-          {isEdit && ordenId ? (
-            <a href={`/ordenes/${ordenId}/evidencias`} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
-              <Image className="h-4 w-4" /> Evidencias
-            </a>
-          ) : null}
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
-          <ClienteSelector value={clienteId} onChange={onPickCliente} />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <section className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="font-semibold text-gray-900">Datos principales</h2>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-            <h3 className="font-semibold text-gray-900">Programación</h3>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">Número *</label>
+            <input
+              value={form.numero}
+              onChange={(e) => onChange("numero", e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Ej: OT-2026-0001"
+            />
+          </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-600">Fecha creación</label>
-                <input type="date" value={fechaCreacion} onChange={(e) => setFechaCreacion(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-600">Fecha programada</label>
-                <input type="date" value={fechaProgramada} onChange={(e) => setFechaProgramada(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-600">Estado</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value as any)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="pendiente">Pendiente</option>
-                  <option value="en_progreso">En progreso</option>
-                  <option value="en_revision">En revisión</option>
-                  <option value="finalizada">Finalizada</option>
-                  <option value="cancelada">Cancelada</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-600">Asunto</label>
-              <input value={asunto} onChange={(e) => setAsunto(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                placeholder="Ej: Instalación 8 cámaras + NVR"
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">Fecha</label>
+              <input
+                type="date"
+                value={form.fecha}
+                onChange={(e) => onChange("fecha", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-600">Dirección del servicio</label>
-              <input value={direccionServicio} onChange={(e) => setDireccionServicio(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                placeholder="Ej: Cra 10 # 12-34"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-600">Observaciones</label>
-              <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)}
-                className="min-h-[120px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                placeholder="Observaciones internas, accesos, contacto, horario..."
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">Fecha programada</label>
+              <input
+                type="date"
+                value={form.fechaProgramada}
+                onChange={(e) => onChange("fechaProgramada", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="flex items-center gap-2 font-semibold text-gray-900"><ClipboardList className="h-4 w-4" /> Checklist</h3>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">Cliente ID</label>
+            <input
+              value={form.clienteId}
+              onChange={(e) => onChange("clienteId", e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="UUID del cliente"
+            />
+          </div>
 
-              <div className="flex gap-2">
-                <select value={tplId} onChange={(e) => setTplId(e.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                >
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nombre}</option>
-                  ))}
-                </select>
-                <button type="button" onClick={applyTemplate}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50"
-                >
-                  Cargar plantilla
-                </button>
-                <a href="/ordenes/checklists" className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-                  Gestionar
-                </a>
-              </div>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">Cotización ID</label>
+            <input
+              value={form.cotizacionId}
+              onChange={(e) => onChange("cotizacionId", e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="UUID de la cotización"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">Asunto</label>
+            <input
+              value={form.asunto}
+              onChange={(e) => onChange("asunto", e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+        </section>
+
+        <section className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="font-semibold text-gray-900">Operación</h2>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">Dirección de servicio</label>
+            <input
+              value={form.direccionServicio}
+              onChange={(e) => onChange("direccionServicio", e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">Técnico</label>
+              <input
+                value={form.tecnico}
+                onChange={(e) => onChange("tecnico", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
             </div>
 
-            <ChecklistEditor checklist={checklist} onChange={setChecklist} />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">Técnico ID</label>
+              <input
+                value={form.tecnicoId}
+                onChange={(e) => onChange("tecnicoId", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">Estado</label>
+            <select
+              value={form.estado}
+              onChange={(e) => onChange("estado", e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+            >
+              <option value="pendiente">Pendiente</option>
+              <option value="en proceso">En proceso</option>
+              <option value="completada">Completada</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">Notas</label>
+            <textarea
+              value={form.notas}
+              onChange={(e) => onChange("notas", e.target.value)}
+              className="min-h-[110px] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+        </section>
+      </div>
+
+      <section className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-gray-900">Checklist</h2>
+            <p className="text-sm text-gray-500">Aplica una plantilla y marca los ítems correspondientes.</p>
+          </div>
+
+          <select
+            value={tplId}
+            onChange={(e) => applyTemplate(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+          >
+            <option value="">Seleccionar plantilla</option>
+            {templates.map((tpl) => (
+              <option key={tpl.id} value={tpl.id}>{tpl.nombre}</option>
+            ))}
+          </select>
         </div>
 
-        <aside className="space-y-5">
-          <TecnicoAssign value={tecnico} onChange={setTecnico} />
-
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-2">
-            <h3 className="font-semibold text-gray-900">Contexto del flujo</h3>
-            {cotizacionId ? (
-              <a href={`/cotizaciones/${cotizacionId}`} className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-                Ver cotización origen
-              </a>
-            ) : (
-              <p className="text-sm text-gray-600">También puedes entrar desde una cotización y queda enlazada automáticamente.</p>
-            )}
-          </div>
-
-          {isEdit && ordenId ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-2">
-              <h3 className="font-semibold text-gray-900">Acciones</h3>
-              <a href={`/ordenes/${ordenId}`} className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-                Ver detalle
-              </a>
-              <a href={`/ordenes/${ordenId}/evidencias`} className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-                Evidencias
-              </a>
-            </div>
-          ) : null}
-        </aside>
-      </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {checklist.map((item) => (
+            <label key={item.id} className="inline-flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3">
+              <input
+                type="checkbox"
+                checked={!!item.checked}
+                onChange={() => toggleChecklist(item.id)}
+              />
+              <span className="text-sm text-gray-700">{item.label}</span>
+            </label>
+          ))}
+        </div>
+      </section>
     </form>
   );
 }

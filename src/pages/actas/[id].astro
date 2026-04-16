@@ -1,12 +1,171 @@
-﻿---
-export const prerender = false;
-
+---
 import MainLayout from "../../layouts/MainLayout.astro";
-import ActaDetail from "../../components/actas/ActaDetail";
+import { getSqlClient } from "../../lib/db/client";
 
-const { id } = Astro.params;
+const actaId = Astro.params.id ?? "";
+const sql = getSqlClient();
+
+let acta = null;
+let loadError = "";
+
+try {
+  if (actaId) {
+    const rows = await sql`
+      SELECT
+        a.id::text AS id,
+        a.numero,
+        a.cliente_id::text AS "clienteId",
+        json_build_object(
+          'id', c.id::text,
+          'nombre', c.nombre,
+          'documento', c.documento,
+          'telefono', c.telefono,
+          'email', c.email,
+          'ciudad', c.ciudad
+        ) AS cliente,
+        a.fecha::text AS fecha,
+        a.lugar,
+        coalesce(a.estado, 'borrador') AS status,
+        a.estado,
+        a.observaciones,
+        a.firma_data_url AS "firmaDataUrl",
+        a.created_at::text AS "createdAt",
+        a.updated_at::text AS "updatedAt"
+      FROM actas a
+      LEFT JOIN clientes c ON c.id = a.cliente_id
+      WHERE a.id = ${actaId}::uuid
+      LIMIT 1
+    `;
+
+    acta = rows[0] ?? null;
+  }
+} catch (error: any) {
+  loadError = error?.message || "No fue posible cargar el acta";
+}
+
+const firma = typeof acta?.firmaDataUrl === "string" ? acta.firmaDataUrl : "";
+const tieneFirma = firma.startsWith("data:image/");
 ---
 
-<MainLayout title={`Acta ${id}`}>
-  <ActaDetail client:load actaId={id!} />
+<MainLayout>
+  <div class="space-y-6">
+    {
+      loadError ? (
+        <div class="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          Error cargando el acta: {loadError}
+        </div>
+      ) : !acta ? (
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <p class="text-sm text-gray-600">Acta no encontrada.</p>
+          <a
+            href="/actas"
+            class="mt-4 inline-flex rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50"
+          >
+            Volver
+          </a>
+        </div>
+      ) : (
+        <>
+          <header class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h1 class="text-2xl font-semibold text-gray-900">{acta.numero || "Acta"}</h1>
+              <p class="text-sm text-gray-500">
+                Estado: {acta.status || "borrador"} · Fecha: {acta.fecha || "—"}
+              </p>
+            </div>
+
+            <div class="flex gap-2">
+              <a
+                href="/actas"
+                class="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-800 hover:bg-gray-50"
+              >
+                Volver
+              </a>
+
+              <a
+                href={`/actas/${acta.id}/editar`}
+                class="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-800 hover:bg-gray-50"
+              >
+                Editar
+              </a>
+
+              <a
+                href={`/actas/${acta.id}/pdf`}
+                class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-white hover:bg-blue-700"
+              >
+                PDF
+              </a>
+            </div>
+          </header>
+
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_380px]">
+            <div class="space-y-6">
+              <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 class="mb-4 text-xl font-semibold text-gray-900">Datos generales</h2>
+
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p class="text-xs font-semibold text-gray-500">Cliente</p>
+                    <p class="mt-1 text-sm text-gray-800">{acta.cliente?.nombre || "—"}</p>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-gray-500">Documento</p>
+                    <p class="mt-1 text-sm text-gray-800">{acta.cliente?.documento || "—"}</p>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-gray-500">Fecha</p>
+                    <p class="mt-1 text-sm text-gray-800">{acta.fecha || "—"}</p>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-gray-500">Lugar</p>
+                    <p class="mt-1 text-sm text-gray-800">{acta.lugar || "—"}</p>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-gray-500">Estado</p>
+                    <p class="mt-1 text-sm text-gray-800">{acta.status || "borrador"}</p>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-gray-500">Actualizada</p>
+                    <p class="mt-1 text-sm text-gray-800">{acta.updatedAt || "—"}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 class="mb-4 text-xl font-semibold text-gray-900">Observaciones</h2>
+                <pre class="whitespace-pre-wrap text-sm text-gray-700 font-sans">{acta.observaciones || "Sin observaciones."}</pre>
+              </section>
+            </div>
+
+            <aside class="space-y-6">
+              <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 class="mb-4 text-lg font-semibold text-gray-900">Firma</h2>
+
+                {
+                  tieneFirma ? (
+                    <div class="rounded-xl border border-gray-200 bg-white p-3">
+                      <img
+                        src={firma}
+                        alt="Firma del acta"
+                        class="block w-full rounded-lg border border-dashed border-gray-300 bg-white"
+                      />
+                    </div>
+                  ) : (
+                    <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-500">
+                      Esta acta no tiene firma registrada.
+                    </div>
+                  )
+                }
+              </section>
+            </aside>
+          </div>
+        </>
+      )
+    }
+  </div>
 </MainLayout>

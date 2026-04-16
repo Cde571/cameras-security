@@ -1,0 +1,10 @@
+---
+import MainLayout from "../../../layouts/MainLayout.astro";
+import ActaForm from "../../../components/actas/ActaForm";
+
+const actaId = Astro.params.id ?? "";
+---
+
+<MainLayout>
+  <ActaForm mode="edit" actaId={actaId} client:load />
+</MainLayout>

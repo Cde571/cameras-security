@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Save, ArrowLeft } from "lucide-react";
 import { createCliente, getCliente, updateCliente } from "../../lib/repositories/clienteRepo";
 
@@ -22,46 +22,74 @@ export default function ClienteForm({ mode, clienteId }: Props) {
   });
 
   const [loading, setLoading] = useState(isEdit);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isEdit) return;
     if (!clienteId) return;
 
-    const c = getCliente(clienteId);
-    if (c) {
-      setForm({
-        nombre: c.nombre || "",
-        documento: c.documento || "",
-        telefono: c.telefono || "",
-        email: c.email || "",
-        direccion: c.direccion || "",
-        ciudad: c.ciudad || "",
-        notas: c.notas || "",
-        estado: (c.estado || "activo") as any,
-      });
+    let cancelled = false;
+
+    async function loadCliente() {
+      try {
+        setLoading(true);
+        const c = await getCliente(clienteId);
+
+        if (!cancelled && c) {
+          setForm({
+            nombre: c.nombre || "",
+            documento: c.documento || "",
+            telefono: c.telefono || "",
+            email: c.email || "",
+            direccion: c.direccion || "",
+            ciudad: c.ciudad || "",
+            notas: c.notas || "",
+            estado: (c.estado || "activo") as any,
+          });
+        }
+      } catch (error) {
+        console.error("Error cargando cliente:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    setLoading(false);
+
+    loadCliente();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isEdit, clienteId]);
 
   const canSave = useMemo(() => form.nombre.trim().length >= 3, [form.nombre]);
 
   const onChange = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!canSave) {
       alert("Nombre del cliente es obligatorio (mínimo 3 caracteres).");
       return;
     }
 
-    if (isEdit && clienteId) {
-      updateCliente(clienteId, { ...form });
-      window.location.href = `/clientes/${clienteId}`;
-      return;
-    }
+    try {
+      setSaving(true);
 
-    const nuevo = createCliente({ ...form });
-    window.location.href = `/clientes/${nuevo.id}`;
+      if (isEdit && clienteId) {
+        await updateCliente(clienteId, { ...form });
+        window.location.href = `/clientes/${clienteId}`;
+        return;
+      }
+
+      const nuevo = await createCliente({ ...form });
+      window.location.href = `/clientes/${nuevo.id}`;
+    } catch (error) {
+      console.error("Error guardando cliente:", error);
+      alert("No fue posible guardar el cliente.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -94,12 +122,12 @@ export default function ClienteForm({ mode, clienteId }: Props) {
           <button
             type="submit"
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-white ${
-              canSave ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-300 cursor-not-allowed"
+              canSave && !saving ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-300 cursor-not-allowed"
             }`}
-            disabled={!canSave}
+            disabled={!canSave || saving}
           >
             <Save className="h-4 w-4" />
-            Guardar
+            {saving ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </header>
@@ -208,4 +236,3 @@ export default function ClienteForm({ mode, clienteId }: Props) {
     </form>
   );
 }
-

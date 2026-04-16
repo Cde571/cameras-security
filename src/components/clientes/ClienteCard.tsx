@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pencil, History, FileText, DollarSign, Wrench } from "lucide-react";
 import { getCliente, type Cliente } from "../../lib/flow/data";
 import { buildFlowUrl } from "../../lib/flow/context";
@@ -7,9 +7,31 @@ type Props = { clienteId: string };
 
 export default function ClienteCard({ clienteId }: Props) {
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setCliente(getCliente(clienteId));
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setLoading(true);
+        const data = await getCliente(clienteId);
+        if (!cancelled) {
+          setCliente(data);
+        }
+      } catch (error) {
+        console.error("Error cargando cliente:", error);
+        if (!cancelled) setCliente(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [clienteId]);
 
   const links = useMemo(() => ({
@@ -17,6 +39,14 @@ export default function ClienteCard({ clienteId }: Props) {
     cobro: buildFlowUrl("/cobros/nueva", { clienteId, from: "cliente" }),
     orden: buildFlowUrl("/ordenes/nueva", { clienteId, from: "cliente" }),
   }), [clienteId]);
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-gray-600">Cargando cliente...</p>
+      </div>
+    );
+  }
 
   if (!cliente) {
     return (

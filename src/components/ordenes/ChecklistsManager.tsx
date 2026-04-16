@@ -1,154 +1,147 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Save, Trash2, Search } from "lucide-react";
-import { createChecklistTemplate, deleteChecklistTemplate, listChecklistTemplates, updateChecklistTemplate, type ChecklistTemplate } from "../../lib/repositories/ordenRepo";
+import React, { useEffect, useState } from "react";
+import { ClipboardList } from "lucide-react";
+import { listCheckListTemplates } from "../../lib/repositories/ordenRepo";
+
+type CheckItem = {
+  id: string;
+  label: string;
+  checked: boolean;
+};
+
+type ChecklistTemplate = {
+  id: string;
+  nombre: string;
+  activo?: boolean;
+  items: CheckItem[];
+};
 
 export default function ChecklistsManager() {
   const [q, setQ] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const list = useMemo(() => listChecklistTemplates(q), [q, refresh]);
-
+  const [list, setList] = useState<ChecklistTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState<ChecklistTemplate | null>(null);
 
   useEffect(() => {
-    const base = listChecklistTemplates("");
-    setRefresh(n => n + 1);
-    if (base[0]) setEdit(base[0]);
-  }, []);
+    let cancelled = false;
+
+    async function loadTemplates() {
+      try {
+        setLoading(true);
+        const data = await listCheckListTemplates(q);
+        const arr = Array.isArray(data) ? data : [];
+
+        if (!cancelled) {
+          setList(arr);
+          if (!edit && arr[0]) {
+            setEdit(arr[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando checklists:", error);
+        if (!cancelled) {
+          setList([]);
+          setEdit(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadTemplates();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [q, refresh]);
 
   const pick = (id: string) => {
-    const t = list.find(x => x.id === id) || listChecklistTemplates("").find(x => x.id === id);
-    if (!t) return;
-    setEdit(t);
-  };
-
-  const create = () => {
-    const tpl = createChecklistTemplate("Nuevo checklist");
-    setRefresh(n => n + 1);
-    setEdit(tpl);
-  };
-
-  const save = () => {
-    if (!edit) return;
-    if (edit.nombre.trim().length < 3) return alert("Nombre mínimo 3 caracteres.");
-    updateChecklistTemplate(edit.id, { nombre: edit.nombre, items: edit.items });
-    setRefresh(n => n + 1);
-    alert("Checklist guardado.");
-  };
-
-  const del = () => {
-    if (!edit) return;
-    const ok = confirm("¿Eliminar este checklist?");
-    if (!ok) return;
-    deleteChecklistTemplate(edit.id);
-    setEdit(null);
-    setRefresh(n => n + 1);
-  };
-
-  const setItem = (idx: number, label: string) => {
-    if (!edit) return;
-    const items = edit.items.map((it, i) => i === idx ? ({ ...it, label }) : it);
-    setEdit({ ...edit, items });
-  };
-
-  const addItem = () => {
-    if (!edit) return;
-    setEdit({ ...edit, items: [{ label: "Nuevo ítem" }, ...edit.items] });
-  };
-
-  const removeItem = (idx: number) => {
-    if (!edit) return;
-    setEdit({ ...edit, items: edit.items.filter((_, i) => i !== idx) });
+    const found = list.find((x) => x.id === id) || null;
+    setEdit(found ? { ...found } : null);
   };
 
   return (
     <div className="space-y-5">
-      <header className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Checklists</h1>
-          <p className="text-sm text-gray-500">Plantillas reutilizables para órdenes.</p>
-        </div>
-        <div className="flex gap-2">
-          <a className="rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50" href="/ordenes">
-            Volver
-          </a>
-          <button onClick={create} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-            <Plus className="h-4 w-4" /> Nuevo
-          </button>
-        </div>
+      <header>
+        <h1 className="text-2xl font-semibold text-gray-900">Plantillas de checklist</h1>
+        <p className="text-sm text-gray-500">Consulta las plantillas base para órdenes de trabajo.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <aside className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-            <Search className="h-4 w-4 text-gray-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar..."
-              className="w-full bg-transparent outline-none text-sm"
-            />
+      <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar plantilla..."
+          className="w-full bg-transparent text-sm outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => setRefresh((n) => n + 1)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+        >
+          Recargar
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <aside className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-4 py-3">
+            <p className="text-sm font-semibold text-gray-800">Plantillas</p>
           </div>
 
-          <div className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200">
-            {list.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => pick(t.id)}
-                className={`w-full px-4 py-3 text-left hover:bg-gray-50 ${edit?.id === t.id ? "bg-blue-50" : "bg-white"}`}
-              >
-                <div className="font-semibold text-gray-900 text-sm">{t.nombre}</div>
-                <div className="text-xs text-gray-500">{t.items.length} ítems</div>
-              </button>
-            ))}
-          </div>
+          {loading ? (
+            <div className="p-6 text-sm text-gray-600">Cargando plantillas...</div>
+          ) : list.length === 0 ? (
+            <div className="p-6 text-sm text-gray-600">No hay plantillas disponibles.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {list.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  onClick={() => pick(tpl.id)}
+                  className={`w-full px-4 py-3 text-left hover:bg-gray-50 ${
+                    edit?.id === tpl.id ? "bg-blue-50" : "bg-white"
+                  }`}
+                >
+                  <div className="font-semibold text-gray-900 text-sm">{tpl.nombre}</div>
+                  <div className="text-xs text-gray-500">
+                    {tpl.activo === false ? "Inactiva" : "Activa"} · {Array.isArray(tpl.items) ? tpl.items.length : 0} ítems
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </aside>
 
-        <section className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
           {!edit ? (
-            <p className="text-sm text-gray-600">Selecciona una plantilla o crea una nueva.</p>
+            <div className="flex min-h-[320px] flex-col items-center justify-center text-center text-gray-500">
+              <ClipboardList className="h-10 w-10 text-gray-300" />
+              <p className="mt-3">Selecciona una plantilla para verla.</p>
+            </div>
           ) : (
-            <>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-600">Nombre</label>
-                <input
-                  value={edit.nombre}
-                  onChange={(e) => setEdit({ ...edit, nombre: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                />
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">{edit.nombre}</h2>
+                <p className="text-sm text-gray-500">
+                  Estado: {edit.activo === false ? "Inactiva" : "Activa"}
+                </p>
               </div>
 
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Ítems</h3>
-                <button onClick={addItem} className="rounded-lg border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 text-sm">
-                  + Agregar ítem
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {edit.items.map((it, idx) => (
-                  <div key={idx} className="flex items-center gap-2 rounded-lg border border-gray-200 p-2">
-                    <input
-                      value={it.label}
-                      onChange={(e) => setItem(idx, e.target.value)}
-                      className="flex-1 rounded-md border border-gray-200 px-2 py-1 text-sm"
-                    />
-                    <button onClick={() => removeItem(idx)} className="rounded-lg border border-gray-300 p-2 hover:bg-white" title="Eliminar">
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </button>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {(Array.isArray(edit.items) ? edit.items : []).map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-gray-200 px-4 py-3 text-sm text-gray-700"
+                  >
+                    {item.label}
                   </div>
                 ))}
               </div>
-
-              <div className="flex justify-end gap-2">
-                <button onClick={del} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
-                  <Trash2 className="h-4 w-4 text-red-600" /> Eliminar
-                </button>
-                <button onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                  <Save className="h-4 w-4" /> Guardar
-                </button>
-              </div>
-            </>
+            </div>
           )}
         </section>
       </div>
     </div>
   );
 }
-

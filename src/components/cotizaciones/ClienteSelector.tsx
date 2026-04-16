@@ -1,46 +1,91 @@
-﻿import React, { useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import { listClientes, type Cliente } from "../../lib/repositories/clienteRepo";
+import React, { useEffect, useState } from "react";
+import { listClientes } from "../../lib/repositories/clienteRepo";
+
+type Cliente = {
+  id: string;
+  nombre: string;
+  documento?: string;
+  email?: string;
+  telefono?: string;
+  ciudad?: string;
+};
 
 type Props = {
   value?: string;
-  onChange: (cliente: Cliente) => void;
+  onChange?: (value: string) => void;
+  label?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  [key: string]: any;
 };
 
-export default function ClienteSelector({ value, onChange }: Props) {
-  const [q, setQ] = useState("");
+export default function ClienteSelector({
+  value = "",
+  onChange,
+  label = "Cliente",
+  placeholder = "Selecciona un cliente",
+  disabled = false,
+  className = "",
+  ...rest
+}: Props) {
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const clientes = useMemo(() => listClientes(q), [q]);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadClientes() {
+      try {
+        setLoading(true);
+
+        const data = await listClientes("");
+        const arr = Array.isArray(data)
+          ? data
+          : Array.isArray((data as any)?.items)
+            ? (data as any).items
+            : [];
+
+        if (!cancelled) {
+          setClientes(arr);
+        }
+      } catch (error) {
+        console.error("Error cargando clientes en selector:", error);
+        if (!cancelled) {
+          setClientes([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadClientes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold text-gray-900">Cliente</h3>
-        <a href="/clientes/nuevo" className="text-sm text-blue-600 hover:text-blue-700">+ Crear cliente</a>
-      </div>
-
-      <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-        <Search className="h-4 w-4 text-gray-400" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar cliente..."
-          className="w-full bg-transparent outline-none text-sm"
-        />
-      </div>
+    <div className={`space-y-2 ${className}`}>
+      <label className="text-xs font-semibold text-gray-600">{label}</label>
 
       <select
-        value={value || ""}
-        onChange={(e) => {
-          const c = clientes.find((x) => x.id === e.target.value);
-          if (c) onChange(c);
-        }}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        disabled={disabled || loading}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400"
+        {...rest}
       >
-        <option value="" disabled>Selecciona un cliente</option>
+        <option value="">
+          {loading ? "Cargando clientes..." : placeholder}
+        </option>
+
         {clientes.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.nombre} {c.documento ? `- ${c.documento}` : ""}
+            {c.nombre}{c.documento ? ` - ${c.documento}` : ""}
           </option>
         ))}
       </select>
@@ -53,4 +98,3 @@ export default function ClienteSelector({ value, onChange }: Props) {
     </div>
   );
 }
-

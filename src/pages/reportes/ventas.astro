@@ -1,7 +1,15 @@
-﻿---
-import MainLayout from "../../layouts/MainLayout.astro";
-import ReporteVentas from "../../components/reportes/ReporteVentas";
 ---
-<MainLayout title="Ventas - Reportes">
-  <ReporteVentas client:load />
+import MainLayout from "../../layouts/MainLayout.astro";
+import VentasChart from "../../components/reportes/VentasChart";
+---
+
+<MainLayout>
+  <div class="space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold text-gray-900">Reporte de ventas</h1>
+      <p class="text-sm text-gray-500">Vista mensual de ventas desde cotizaciones registradas en PostgreSQL.</p>
+    </header>
+
+    <VentasChart title="Ventas por mes" client:load />
+  </div>
 </MainLayout>

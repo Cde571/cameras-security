@@ -1,7 +1,8 @@
-﻿---
-import MainLayout from "../../layouts/MainLayout.astro";
-import CuentaCobroForm from "../../components/cobros/CuentaCobroForm";
 ---
-<MainLayout title="Nueva cuenta de cobro - Sistema de Cotizaciones">
-  <CuentaCobroForm client:load />
+import MainLayout from "../../layouts/MainLayout.astro";
+import CuentaForm from "../../components/cobros/CuentaForm";
+---
+
+<MainLayout>
+  <CuentaForm mode="create" client:load />
 </MainLayout>

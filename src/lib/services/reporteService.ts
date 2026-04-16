@@ -1,11 +1,4 @@
-﻿/** API-first service with LocalService fallback. */
-import * as ReportesLocal from "./reporteLocalService";
-export type ReporteDashboard = ReportesLocal.ReporteDashboard;
-
 type FetchOpts = RequestInit & { json?: any };
-
-const API = "/api/reportes";
-const hasWindow = () => typeof window !== "undefined";
 
 async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   const headers: Record<string, string> = {
@@ -21,60 +14,141 @@ async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
 
   const res = await fetch(url, init);
   const text = await res.text();
-  let data: any = null;
 
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
 
   if (!res.ok) {
-    throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+    throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
   }
 
   return data as T;
 }
 
-const local = () => ReportesLocal.getReporteDashboard();
+const hasWindow = () => typeof window !== "undefined";
 
-export async function getDashboardReport() {
-  if (!hasWindow()) return null;
-  try {
-    return await apiFetch<ReporteDashboard>(`${API}/dashboard`);
-  } catch {
-    return local();
+export type ReporteDashboard = {
+  kpis: {
+    totalVentas: number;
+    totalCobrado: number;
+    carteraPendiente: number;
+    clientes: number;
+    productos: number;
+    cotizaciones: number;
+    ordenesAbiertas: number;
+    actasFirmadas: number;
+  };
+  recientes: {
+    cotizaciones: any[];
+    cobros: any[];
+    pagos: any[];
+  };
+};
+
+export type ReporteVentaItem = {
+  periodo: string;
+  cantidad: number;
+  total: number;
+};
+
+export type ReporteProductoItem = {
+  name: string;
+  count: number;
+  total: number;
+};
+
+export type ReporteClienteItem = {
+  name: string;
+  count: number;
+  total: number;
+};
+
+export type ReporteMargenItem = {
+  category: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  marginPct: number;
+};
+
+export async function getReporteDashboard(): Promise<ReporteDashboard> {
+  if (!hasWindow()) {
+    return {
+      kpis: {
+        totalVentas: 0,
+        totalCobrado: 0,
+        carteraPendiente: 0,
+        clientes: 0,
+        productos: 0,
+        cotizaciones: 0,
+        ordenesAbiertas: 0,
+        actasFirmadas: 0,
+      },
+      recientes: {
+        cotizaciones: [],
+        cobros: [],
+        pagos: [],
+      },
+    };
   }
+
+  return await apiFetch<ReporteDashboard>("/api/reportes/dashboard");
 }
 
-export async function getVentasReport(_range: { from: string; to: string }) {
-  if (!hasWindow()) return null;
-  try {
-    return await apiFetch<any>(`${API}/ventas`);
-  } catch {
-    return local().ventasMensuales;
-  }
+export async function getReporteVentas(): Promise<ReporteVentaItem[]> {
+  if (!hasWindow()) return [];
+
+  const data = await apiFetch<any>("/api/reportes/ventas");
+  const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+
+  return items.map((item: any) => ({
+    periodo: String(item?.periodo ?? ""),
+    cantidad: Number(item?.cantidad || 0),
+    total: Number(item?.total || 0),
+  }));
 }
 
-export async function getProductosReport(_range: { from: string; to: string }) {
-  if (!hasWindow()) return null;
-  try {
-    return await apiFetch<any>(`${API}/productos`);
-  } catch {
-    return local().topProductos;
-  }
+export async function getReporteProductos(): Promise<ReporteProductoItem[]> {
+  if (!hasWindow()) return [];
+
+  const data = await apiFetch<any>("/api/reportes/productos");
+  const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+
+  return items.map((item: any) => ({
+    name: String(item?.name ?? "Producto"),
+    count: Number(item?.count || 0),
+    total: Number(item?.total || 0),
+  }));
 }
 
-export async function getClientesReport(_range: { from: string; to: string }) {
-  if (!hasWindow()) return null;
-  try {
-    return await apiFetch<any>(`${API}/clientes`);
-  } catch {
-    return local().topClientes;
-  }
+export async function getReporteClientes(): Promise<ReporteClienteItem[]> {
+  if (!hasWindow()) return [];
+
+  const data = await apiFetch<any>("/api/reportes/clientes");
+  const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+
+  return items.map((item: any) => ({
+    name: String(item?.name ?? "Cliente"),
+    count: Number(item?.count || 0),
+    total: Number(item?.total || 0),
+  }));
 }
 
-export async function getMargenesReport(_range: { from: string; to: string }) {
-  if (!hasWindow()) return null;
-  try {
-    return await apiFetch<any>(`${API}/margenes`);
-  } catch {
-    return local().margenes;
-  }
+export async function getReporteMargenes(): Promise<ReporteMargenItem[]> {
+  if (!hasWindow()) return [];
+
+  const data = await apiFetch<any>("/api/reportes/margenes");
+  const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+
+  return items.map((item: any) => ({
+    category: String(item?.category ?? "Sin categoría"),
+    revenue: Number(item?.revenue || 0),
+    cost: Number(item?.cost || 0),
+    profit: Number(item?.profit || 0),
+    marginPct: Number(item?.marginPct || 0),
+  }));
 }
