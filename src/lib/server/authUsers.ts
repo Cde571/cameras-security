@@ -64,22 +64,26 @@ export async function getUserByEmail(email: string): Promise<DbUserRow | null> {
 export async function getUserById(id: string): Promise<SessionUser | null> {
   const sql = getSqlClient();
 
-  const rows = await sql`
-    SELECT
-      id::text,
-      nombre,
-      email,
-      role,
-      activo
-    FROM usuarios
-    WHERE id = ${id}::uuid
-    LIMIT 1
-  `;
+  try {
+    const rows = await sql`
+      SELECT
+        id::text,
+        nombre,
+        email,
+        role,
+        activo
+      FROM usuarios
+      WHERE id = ${id}::uuid
+      LIMIT 1
+    `;
 
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  if (rows[0].activo === false) return null;
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    if (rows[0].activo === false) return null;
 
-  return mapUser(rows[0]);
+    return mapUser(rows[0]);
+  } catch {
+    return null;
+  }
 }
 
 export async function authenticateUser(email: string, password: string): Promise<SessionUser | null> {
@@ -95,7 +99,7 @@ export async function touchUserLogin(id: string) {
   try {
     await sql`
       UPDATE usuarios
-      SET ultimo_acceso = now(), updated_at = now()
+      SET ultimo_acceso = now()
       WHERE id = ${id}::uuid
     `;
   } catch {

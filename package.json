@@ -9,7 +9,7 @@
     "astro": "astro",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/lib/db/migrations.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio","db:bootstrap-auth": "tsx src/lib/db/bootstrap-auth.ts"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.2",

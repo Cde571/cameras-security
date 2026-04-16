@@ -1,13 +1,11 @@
 ﻿---
+import "../styles/global.css";
+
 interface Props {
   title?: string;
-  description?: string;
 }
 
-const {
-  title = "Acceso | Sistema de Cotizaciones",
-  description = "Ingreso seguro al sistema de cotizaciones",
-} = Astro.props as Props;
+const { title = "Iniciar sesión" } = Astro.props;
 ---
 
 <!doctype html>
@@ -15,13 +13,56 @@ const {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content={description} />
     <title>{title}</title>
   </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <main class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900"></div>
+      <div class="absolute inset-0 bg-black/20"></div>
 
-  <body class="min-h-screen bg-slate-100 text-gray-900 antialiased">
-    <main class="min-h-screen flex items-center justify-center p-6">
-      <slot />
+      <div class="relative z-10 grid w-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 bg-white/10 shadow-2xl backdrop-blur lg:grid-cols-2">
+        <section class="hidden lg:flex flex-col justify-between bg-white/10 p-10 text-white">
+          <div>
+            <div class="mb-6 flex items-center gap-3">
+              <img
+                src="/logo-omnivision.png"
+                alt="Logo"
+                class="h-14 w-14 rounded-xl bg-white/10 p-2 object-contain"
+                onerror="this.style.display='none'"
+              />
+              <div>
+                <h1 class="text-2xl font-bold tracking-wide">Omnivision</h1>
+                <p class="text-sm text-white/75">Sistema de cotizaciones y gestión</p>
+              </div>
+            </div>
+
+            <h2 class="max-w-md text-4xl font-extrabold leading-tight">
+              Gestionamos clientes, cotizaciones, órdenes y cobros en un solo lugar.
+            </h2>
+
+            <p class="mt-6 max-w-md text-base text-white/80">
+              Accede al panel para administrar documentos, seguimiento comercial y control operativo.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded-2xl border border-white/10 bg-white/10 p-4">
+              <p class="text-sm text-white/70">Módulos</p>
+              <p class="mt-1 text-2xl font-bold">Clientes · Órdenes</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/10 p-4">
+              <p class="text-sm text-white/70">Documentos</p>
+              <p class="mt-1 text-2xl font-bold">PDF · Cobros</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="flex items-center justify-center bg-white px-6 py-10 sm:px-10">
+          <div class="w-full max-w-md">
+            <slot />
+          </div>
+        </section>
+      </div>
     </main>
   </body>
 </html>

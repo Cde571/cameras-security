@@ -12,13 +12,29 @@ async function run() {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       nombre text NOT NULL,
       email text NOT NULL UNIQUE,
-      role text NOT NULL DEFAULT 'ventas',
+      role text NOT NULL DEFAULT 'admin',
       activo boolean NOT NULL DEFAULT true,
       password_hash text NOT NULL,
       ultimo_acceso timestamptz,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )
+  `;
+
+  await sql`
+    ALTER TABLE usuarios
+    ADD COLUMN IF NOT EXISTS role text
+  `;
+
+  await sql`
+    UPDATE usuarios
+    SET role = COALESCE(role, rol, 'ventas')
+    WHERE role IS NULL OR trim(role) = ''
+  `.catch(() => {});
+
+  await sql`
+    ALTER TABLE usuarios
+    ALTER COLUMN role SET DEFAULT 'admin'
   `;
 
   const adminName = process.env.ADMIN_NAME?.trim() || "Administrador";

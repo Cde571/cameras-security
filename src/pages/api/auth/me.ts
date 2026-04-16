@@ -14,17 +14,16 @@ export const GET: APIRoute = async ({ cookies }) => {
       });
     }
 
-    const user = await getUserById(sessionUser.id);
+    const dbUser = await getUserById(sessionUser.id);
 
-    if (!user) {
-      cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+    if (!dbUser) {
       return new Response(JSON.stringify({ ok: false, user: null }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, user }), {
+    return new Response(JSON.stringify({ ok: true, user: dbUser }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
