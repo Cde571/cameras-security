@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { getSqlClient } from "../../../../../lib/db/client";
+import { getSqlClient } from "../../../../lib/db/client";
 
 export const GET: APIRoute = async ({ params }) => {
   try {

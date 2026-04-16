@@ -1,170 +1,185 @@
-import { clienteLocalService } from "./clienteLocalService";
-
 type HistorialCliente = {
-  cliente: any | null;
-  cotizaciones: any[];
-  ordenes: any[];
-  cobros: any[];
-  pagos: any[];
-  actividad: any[];
+  id: string;
+  clienteId: string;
+  fecha: string;
+  tipo: string;
+  titulo: string;
+  descripcion?: string;
+  meta?: Record<string, any> | null;
 };
 
-function isBrowser() {
+const STORAGE_KEY = "cliente_historial_v1";
+
+function hasWindow() {
   return typeof window !== "undefined";
 }
 
-function isDemoMode() {
-  if (!isBrowser()) return false;
-  return window.localStorage.getItem("demoMode") === "true";
+function makeId() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function readLocalJson<T>(key: string, fallback: T): T {
-  if (!isBrowser()) return fallback;
+function safeParse<T>(value: string | null, fallback: T): T {
+  if (!value) return fallback;
 
   try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
+    return JSON.parse(value) as T;
   } catch {
     return fallback;
   }
 }
 
-async function parseJsonSafe(response: Response) {
-  const text = await response.text();
-  if (!text) return null;
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error("La API devolvió una respuesta no válida");
-  }
+function readAll(): HistorialCliente[] {
+  if (!hasWindow()) return [];
+  return safeParse<HistorialCliente[]>(window.localStorage.getItem(STORAGE_KEY), []);
 }
 
-async function request(url: string) {
-  const response = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-  });
-
-  const data = await parseJsonSafe(response);
-
-  if (!response.ok || data?.ok === false) {
-    throw new Error(data?.error || `Error HTTP ${response.status}`);
-  }
-
-  return data;
+function writeAll(items: HistorialCliente[]) {
+  if (!hasWindow()) return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
-function fallbackHistorial(clienteId: string): HistorialCliente {
-  const cliente = clienteLocalService.obtenerPorId(clienteId) ?? null;
-  const cotizaciones = readLocalJson<any[]>("cotizaciones", []).filter((x) => x?.clienteId === clienteId);
-  const ordenes = readLocalJson<any[]>("ordenes", []).filter((x) => x?.clienteId === clienteId);
-  const cobros = readLocalJson<any[]>("cobros", []).filter((x) => x?.clienteId === clienteId);
-  const pagos = readLocalJson<any[]>("pagos", []).filter((x) => x?.clienteId === clienteId);
-
-  const actividad = [
-    ...cotizaciones.map((x) => ({
-      tipo: "cotizacion",
-      fecha: x?.updatedAt ?? x?.createdAt ?? new Date().toISOString(),
-      data: x,
-    })),
-    ...ordenes.map((x) => ({
-      tipo: "orden",
-      fecha: x?.updatedAt ?? x?.createdAt ?? new Date().toISOString(),
-      data: x,
-    })),
-    ...cobros.map((x) => ({
-      tipo: "cobro",
-      fecha: x?.updatedAt ?? x?.createdAt ?? new Date().toISOString(),
-      data: x,
-    })),
-    ...pagos.map((x) => ({
-      tipo: "pago",
-      fecha: x?.updatedAt ?? x?.createdAt ?? new Date().toISOString(),
-      data: x,
-    })),
-  ].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
-
+function normalizeEntry(input: Partial<HistorialCliente> & { clienteId: string }): HistorialCliente {
   return {
-    cliente,
-    cotizaciones,
-    ordenes,
-    cobros,
-    pagos,
-    actividad,
+    id: String(input.id ?? makeId()),
+    clienteId: String(input.clienteId ?? ""),
+    fecha: String(input.fecha ?? new Date().toISOString()),
+    tipo: String(input.tipo ?? "nota"),
+    titulo: String(input.titulo ?? "Movimiento"),
+    descripcion: input.descripcion ? String(input.descripcion) : "",
+    meta: input.meta ?? null,
   };
 }
 
-export async function obtenerHistorialCliente(clienteId: string): Promise<HistorialCliente> {
-  try {
-    if (isDemoMode()) {
-      return fallbackHistorial(clienteId);
-    }
+export function listHistorialCliente(clienteId: string): HistorialCliente[] {
+  const id = String(clienteId ?? "").trim();
+  if (!id) return [];
 
-    const [clienteRes, cobrosRes, pagosRes] = await Promise.allSettled([
-      request(`/api/clientes/${clienteId}`),
-      request(`/api/cobros?q=${encodeURIComponent(clienteId)}`),
-      request(`/api/pagos?q=${encodeURIComponent(clienteId)}`),
-    ]);
+  return readAll()
+    .filter((item) => item.clienteId === id)
+    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+}
 
-    const cliente =
-      clienteRes.status === "fulfilled"
-        ? (clienteRes.value?.item ?? null)
-        : (clienteLocalService.obtenerPorId(clienteId) ?? null);
+export function getHistorialCliente(clienteId: string): HistorialCliente[] {
+  return listHistorialCliente(clienteId);
+}
 
-    const cobros =
-      cobrosRes.status === "fulfilled"
-        ? (Array.isArray(cobrosRes.value?.items)
-            ? cobrosRes.value.items.filter((x: any) => x?.clienteId === clienteId)
-            : [])
-        : readLocalJson<any[]>("cobros", []).filter((x) => x?.clienteId === clienteId);
+export function getClienteHistorial(clienteId: string): HistorialCliente[] {
+  return listHistorialCliente(clienteId);
+}
 
-    const pagos =
-      pagosRes.status === "fulfilled"
-        ? (Array.isArray(pagosRes.value?.items)
-            ? pagosRes.value.items.filter((x: any) => x?.clienteId === clienteId)
-            : [])
-        : readLocalJson<any[]>("pagos", []).filter((x) => x?.clienteId === clienteId);
+export function addHistorialCliente(
+  clienteId: string,
+  entry: Partial<HistorialCliente> & { titulo?: string; descripcion?: string; tipo?: string; meta?: Record<string, any> | null }
+): HistorialCliente {
+  const normalized = normalizeEntry({
+    clienteId,
+    titulo: entry?.titulo ?? "Movimiento",
+    descripcion: entry?.descripcion ?? "",
+    tipo: entry?.tipo ?? "nota",
+    fecha: entry?.fecha,
+    meta: entry?.meta ?? null,
+    id: entry?.id,
+  });
 
-    const cotizaciones = readLocalJson<any[]>("cotizaciones", []).filter((x) => x?.clienteId === clienteId);
-    const ordenes = readLocalJson<any[]>("ordenes", []).filter((x) => x?.clienteId === clienteId);
+  const current = readAll();
+  current.push(normalized);
+  writeAll(current);
 
-    const actividad = [
-      ...cotizaciones.map((x) => ({
-        tipo: "cotizacion",
-        fecha: x?.updatedAt ?? x?.createdAt ?? new Date().toISOString(),
-        data: x,
-      })),
-      ...ordenes.map((x) => ({
-        tipo: "orden",
-        fecha: x?.updatedAt ?? x?.createdAt ?? new Date().toISOString(),
-        data: x,
-      })),
-      ...cobros.map((x) => ({
-        tipo: "cobro",
-        fecha: x?.updatedAt ?? x?.createdAt ?? new Date().toISOString(),
-        data: x,
-      })),
-      ...pagos.map((x) => ({
-        tipo: "pago",
-        fecha: x?.updatedAt ?? x?.createdAt ?? new Date().toISOString(),
-        data: x,
-      })),
-    ].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+  return normalized;
+}
 
-    return {
-      cliente,
-      cotizaciones,
-      ordenes,
-      cobros,
-      pagos,
-      actividad,
-    };
-  } catch (error) {
-    console.warn("[clienteHistorialService] fallback local:", error);
-    return fallbackHistorial(clienteId);
+export function appendHistorialCliente(
+  clienteId: string,
+  entry: Partial<HistorialCliente> & { titulo?: string; descripcion?: string; tipo?: string; meta?: Record<string, any> | null }
+): HistorialCliente {
+  return addHistorialCliente(clienteId, entry);
+}
+
+export function registrarMovimientoCliente(
+  clienteId: string,
+  payload: { titulo?: string; descripcion?: string; tipo?: string; meta?: Record<string, any> | null }
+): HistorialCliente {
+  return addHistorialCliente(clienteId, payload);
+}
+
+export function saveHistorialCliente(
+  clienteId: string,
+  entries: Array<Partial<HistorialCliente>>
+): HistorialCliente[] {
+  const id = String(clienteId ?? "").trim();
+  if (!id) return [];
+
+  const others = readAll().filter((item) => item.clienteId !== id);
+  const normalized = (Array.isArray(entries) ? entries : []).map((entry) =>
+    normalizeEntry({
+      ...entry,
+      clienteId: id,
+    })
+  );
+
+  writeAll([...others, ...normalized]);
+  return listHistorialCliente(id);
+}
+
+export function deleteHistorialCliente(clienteId: string, historialId: string): boolean {
+  const cliente = String(clienteId ?? "").trim();
+  const historial = String(historialId ?? "").trim();
+
+  if (!cliente || !historial) return false;
+
+  const current = readAll();
+  const next = current.filter((item) => !(item.clienteId === cliente && item.id === historial));
+
+  writeAll(next);
+  return next.length !== current.length;
+}
+
+export function clearHistorialCliente(clienteId: string): void {
+  const id = String(clienteId ?? "").trim();
+  if (!id) return;
+
+  const next = readAll().filter((item) => item.clienteId !== id);
+  writeAll(next);
+}
+
+export function exportClienteJson(clienteId: string, filename?: string): void {
+  if (!hasWindow()) {
+    throw new Error("Esta función solo se puede usar en el navegador.");
   }
+
+  const historial = listHistorialCliente(clienteId);
+  const payload = {
+    clienteId,
+    exportedAt: new Date().toISOString(),
+    total: historial.length,
+    items: historial,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || `cliente-${clienteId}-historial.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export const clienteHistorialService = {
-  obtenerHistorialCliente,
+  listHistorialCliente,
+  getHistorialCliente,
+  getClienteHistorial,
+  addHistorialCliente,
+  appendHistorialCliente,
+  registrarMovimientoCliente,
+  saveHistorialCliente,
+  deleteHistorialCliente,
+  clearHistorialCliente,
+  exportClienteJson,
 };
+
+export type { HistorialCliente };
