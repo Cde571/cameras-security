@@ -31,3 +31,7 @@ drizzle.config.json
 # Build output de Vercel
 .vercel
 
+node_modules
+dist
+.astro
+.env.*
