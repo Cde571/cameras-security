@@ -11,6 +11,9 @@ export default defineConfig({
   integrations: [react()],
   vite: {
     plugins: [tailwindcss()],
+    ssr: {
+      external: ["dotenv", "dotenv/config"],
+    },
   },
   server: {
     host: true,
