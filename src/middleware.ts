@@ -29,6 +29,12 @@ function json(status: number, data: Record<string, any>) {
   });
 }
 
+function getOrigin(request: Request, url: URL): string {
+  const proto = request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || url.host;
+  return `${proto}://${host}`;
+}
+
 export const onRequest: MiddlewareHandler = async (context, next) => {
   const { request, url, locals } = context;
   const pathname = url.pathname;
@@ -44,7 +50,8 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
       return json(401, { ok: false, error: "No autenticado" });
     }
     const nextUrl = encodeURIComponent(`${pathname}${url.search}`);
-    const loginUrl = new URL(`/auth/login?next=${nextUrl}`, url.origin);
+    const origin = getOrigin(request, url);
+    const loginUrl = new URL(`/auth/login?next=${nextUrl}`, origin);
     return Response.redirect(loginUrl.toString(), 302);
   }
 
