@@ -18,11 +18,14 @@ function resolveDatabaseUrl() {
 export function getSqlClient() {
   if (_client) return _client;
 
-  _client = postgres(resolveDatabaseUrl(), {
+  const url = resolveDatabaseUrl();
+
+  _client = postgres(url, {
     max: 10,
     idle_timeout: 20,
     connect_timeout: 10,
     prepare: false,
+    ssl: url.includes("localhost") ? false : "require",
   });
 
   return _client;
