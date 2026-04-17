@@ -29,10 +29,6 @@ function json(status: number, data: Record<string, any>) {
   });
 }
 
-function redirect(location: string) {
-  return Response.redirect(location, 302);
-}
-
 export const onRequest: MiddlewareHandler = async (context, next) => {
   const { request, url, locals } = context;
   const pathname = url.pathname;
@@ -47,9 +43,9 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
     if (pathname.startsWith("/api/")) {
       return json(401, { ok: false, error: "No autenticado" });
     }
-
     const nextUrl = encodeURIComponent(`${pathname}${url.search}`);
-    return redirect(`/auth/login?next=${nextUrl}`);
+    const loginUrl = new URL(`/auth/login?next=${nextUrl}`, url.origin);
+    return Response.redirect(loginUrl.toString(), 302);
   }
 
   locals.user = user;
