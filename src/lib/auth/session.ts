@@ -25,6 +25,28 @@ export type SessionUser = {
   role: string;
 };
 
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+export function verifyPassword(password: string, stored: string): boolean {
+  try {
+    const [salt, originalHash] = String(stored ?? "").split(":");
+    if (!salt || !originalHash) return false;
+
+    const hashBuffer = crypto.scryptSync(password, salt, 64);
+    const originalBuffer = Buffer.from(originalHash, "hex");
+
+    if (hashBuffer.length !== originalBuffer.length) return false;
+
+    return crypto.timingSafeEqual(hashBuffer, originalBuffer);
+  } catch {
+    return false;
+  }
+}
+
 export function createSessionToken(user: SessionUser) {
   const payload = {
     ...user,

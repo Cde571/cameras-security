@@ -1,6 +1,12 @@
 ﻿import "dotenv/config";
+import crypto from "node:crypto";
 import { getSqlClient } from "./client";
-import { hashPassword } from "../auth/session";
+
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 async function run() {
   const sql = getSqlClient();
@@ -21,21 +27,15 @@ async function run() {
     )
   `;
 
-  await sql`
-    ALTER TABLE usuarios
-    ADD COLUMN IF NOT EXISTS role text
-  `;
+  await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role text`.catch(() => {});
 
   await sql`
     UPDATE usuarios
-    SET role = COALESCE(role, rol, 'ventas')
+    SET role = COALESCE(role, 'ventas')
     WHERE role IS NULL OR trim(role) = ''
   `.catch(() => {});
 
-  await sql`
-    ALTER TABLE usuarios
-    ALTER COLUMN role SET DEFAULT 'admin'
-  `;
+  await sql`ALTER TABLE usuarios ALTER COLUMN role SET DEFAULT 'admin'`.catch(() => {});
 
   const adminName = process.env.ADMIN_NAME?.trim() || "Administrador";
   const adminEmail = process.env.ADMIN_EMAIL?.trim() || "admin@empresa.com";
